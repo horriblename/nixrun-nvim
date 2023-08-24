@@ -31,4 +31,8 @@ Refresh your buffer (with `:edit`) after the install completes: you will get a n
 
 # Note
 
-You can install any grammar under `nixpkgs#vimPlugins.nvim-treesitter.builtGrammars`. Tab completion is available for `:NixRunTSGrammar`
+1. You can install any grammar under `nixpkgs#vimPlugins.nvim-treesitter.builtGrammars`. Tab completion is available for `:NixRunTSGrammar`
+2. I recommend you pin your nixpkgs registry by adding this to your NixOS/home-manager config:
+   ```nix
+   nix.registry.nixpkgs.flake = inputs.nixpkgs;
+   ```
