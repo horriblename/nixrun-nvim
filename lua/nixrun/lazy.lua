@@ -3,10 +3,38 @@ local M = {}
 ---@type nil|string[]
 M._installable_parsers = nil
 
+---@param nixExpr string
+---@param succMsg string
+---@param failMsg string
+local function install_plugin(nixExpr, succMsg, failMsg)
+	local cfg = require("nixrun").options
+	local logs = {}
+
+	vim.fn.jobstart(
+		{ "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I", string.format("nixpkgs=%s", cfg.nixpkgs),
+			"--expr", nixExpr },
+		{
+			on_exit = function(_, exitcode, _)
+				if exitcode ~= 0 then
+					vim.notify(failMsg .. "\n" .. table.concat(logs, "\n"), vim.log.levels.ERROR)
+				end
+			end,
+			on_stdout = function(_, data, _)
+				vim.opt.runtimepath:prepend(data[1])
+				vim.notify(succMsg)
+			end,
+			on_stderr = function(_, data, _)
+				logs = data
+			end,
+			stdout_buffered = true,
+			stderr_buffered = true,
+		}
+	)
+end
+
 ---Installs the grammar asyncronously and add it to runtimepath upon completion
 ---@param name string
 function M.includeGrammar(name)
-	local cfg = require("nixrun").options
 	local expr = string.format(
 		[[
 		let
@@ -17,27 +45,10 @@ function M.includeGrammar(name)
 		name
 	)
 
-	local logs = {}
-
-	local _ = vim.fn.jobstart(
-		{ "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I", string.format("nixpkgs=%s", cfg.nixpkgs),
-			"--expr", expr },
-		{
-			on_exit = function(_, exitcode, _)
-				if exitcode ~= 0 then
-					vim.notify('nix building grammar "' .. name .. '": ' .. table.concat(logs, "\n"), vim.log.levels.ERROR)
-				end
-			end,
-			on_stdout = function(_, data, _)
-				vim.opt.runtimepath:prepend(data[1])
-				vim.notify(string.format('Added grammar "%s" to runtimepath', name))
-			end,
-			on_stderr = function(_, data, _)
-				logs = data
-			end,
-			stdout_buffered = true,
-			stderr_buffered = true,
-		})
+	install_plugin(expr,
+		string.format('Added grammar "%s" to runtimepath', name),
+		'nix building grammar "' .. name .. '": '
+	)
 end
 
 ---@return string[]|nil
