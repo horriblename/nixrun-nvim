@@ -1,6 +1,6 @@
-`nix run` for your treesitter grammars (and possibly other plugins in the future)
+`nix run` for your treesitter grammars and arbitrary plugins
 
-Provides commands to easily install treesitter grammars _temporarily_. Think `:TSInstall` + `nix run`
+Provides commands to easily install treesitter grammars and plugins _temporarily_.
 
 # Setup
 
@@ -15,13 +15,17 @@ require('nixrun').setup({})
 These commands are provided
 
 ```vim
-NixRunTSGrammar # installs a treesitter parser for 
+NixRunTSGrammar # installs a treesitter parser
+NixRunPlugin    # installs a vim plugin
 ```
+
+- Treesitter parsers are taken from `nixpkgs#vimPlugins.nvim-treesitter.builtGrammars`.
+- Plugins are taken from `nixpkgs#vimPlugins`
+- Tab completion is available
+
 ## Example
 
-Say you're in a java file, even though you don't usually use java and probably won't ever touch one after this:
-
-run
+Installing treesitter grammars:
 
 ```vim
 :NixRunTSGrammar java
@@ -31,8 +35,7 @@ Refresh your buffer (with `:edit`) after the install completes: you will get a n
 
 # Note
 
-1. You can install any grammar under `nixpkgs#vimPlugins.nvim-treesitter.builtGrammars`. Tab completion is available for `:NixRunTSGrammar`
-2. I recommend you pin your nixpkgs registry by adding this to your NixOS/home-manager config:
-   ```nix
-   nix.registry.nixpkgs.flake = inputs.nixpkgs;
-   ```
+- I recommend you pin your nixpkgs registry by adding this to your NixOS/home-manager config:
+  ```nix
+  nix.registry.nixpkgs.flake = inputs.nixpkgs;
+  ```
