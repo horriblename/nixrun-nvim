@@ -1,0 +1,49 @@
+*nixrun.txt* (ab)use the power of imperative nix in neovim
+
+Introduction                                             *nixrun-introduction*
+
+Nixrun provides a convenient way to install plugins temporarily, like the `nix
+run` command.
+
+After running |nixrun.setup()|, the commands |NixRunTSGrammar| and
+|NixRunPlugin| are provided to install plugins and treesitter parsers.
+
+nixrun.setup({opts})                                          *nixrun.setup()*
+
+Configures the options to be used by the plugin.
+>lua
+    require("nixrun").setup({
+        -- registry/url of nixpkgs, e.g. "flake:nixpkgs",
+        -- "/home/user/nixpkgs", "channel:nixos-21.05"
+        nixpkgs = "nixpkgs",
+    })
+<
+
+                                         *nixrun-treesitter* *NixRunTSGrammar*
+
+Temporarily install a treesitter grammar for this session. After the grammar
+is successfully installed, the buffer must be reloaded using |:edit| for
+treesitter highlighting to take effect.
+>vim
+    NixRunTSGrammar clojure
+<
+
+                                                *nixrun-plugin* *NixRunPlugin*
+
+Temporarily install a plugin for this session. After the plugin is
+successfully installed, mimicking |:packadd|, the following files are sourced:
+>
+    /nix/store/plugin-dir/plugin/**/*.vim
+    /nix/store/plugin-dir/plugin/**/*.lua
+
+    -- if filetype detection was enabled:
+    /nix/store/plugin-dir/ftdetect/*.vim
+<
+
+Example:
+
+>vim
+    NixRunPlugin oil-nvim
+<
+
+vim:tw=78:ts=8:sw=4:et:ft=help:norl:
