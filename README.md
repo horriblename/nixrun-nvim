@@ -35,7 +35,7 @@ Refresh your buffer (with `:edit`) after the install completes: you will get a n
 
 # Note
 
-- I recommend you pin your nixpkgs registry by adding this to your NixOS/home-manager config:
+- I recommend you pin your nixpkgs registry by adding this to your NixOS/home-manager config (mismatched neovim and grammar versions might cause unexpected errors):
   ```nix
   nix.registry.nixpkgs.flake = inputs.nixpkgs;
   ```
