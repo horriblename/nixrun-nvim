@@ -9,16 +9,24 @@ local function source_dir(dir)
 	pcall(vim.cmd.source, dir .. '/**/*.lua')
 end
 
----@param nixExpr string
+---@param installable string nix expression or |flake-output-attribute|, depending on `isExpr`
+---@param isExpr boolean if true, treat `installable` as a nix expr, otherwise it is a |flake-output-attribute|
 ---@param succMsg string
 ---@param failMsg string
-local function install_plugin(nixExpr, succMsg, failMsg)
+local function install_plugin(installable, isExpr, succMsg, failMsg)
 	local cfg = require("nixrun").options
 	local logs = {}
 
+	local installable_args
+	if isExpr then
+		installable_args = { "--expr", installable }
+	else
+		installable_args = { installable }
+	end
+
 	vim.fn.jobstart(
 		{ "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I", string.format("nixpkgs=%s", cfg.nixpkgs),
-			"--expr", nixExpr },
+			unpack(installable_args) },
 		{
 			on_exit = function(_, exitcode, _)
 				if exitcode ~= 0 then
@@ -52,23 +60,34 @@ local function install_plugin(nixExpr, succMsg, failMsg)
 end
 
 ---Installs the grammar asyncronously and add it to runtimepath upon completion
----@param name string
+---@param name string A |flake-output-attribute| or grammar name, as listed in `nixpkgs#vimPlugins.nvim-treesitter.builtGrammars`
 function M.includeGrammar(name)
-	-- TODO: avoid impure
-	local expr = string.format(
-		[[
+	if name:match('#') then
+		install_plugin(
+			name,
+			false,
+			string.format('Added plugin "%s" to runtimepath', name),
+			'nix building plugin "' .. name .. '": '
+		)
+	else
+		-- TODO: avoid impure
+		local expr = string.format(
+			[[
 		let
 			pkgs = import <nixpkgs> {};
 		in with pkgs;
 			neovimUtils.grammarToPlugin vimPlugins.nvim-treesitter.builtGrammars.%s
 		]],
-		name
-	)
+			name
+		)
 
-	install_plugin(expr,
-		string.format('Added grammar "%s" to runtimepath', name),
-		'nix building grammar "' .. name .. '": '
-	)
+		install_plugin(
+			expr,
+			true,
+			string.format('Added grammar "%s" to runtimepath', name),
+			'nix building grammar "' .. name .. '": '
+		)
+	end
 end
 
 ---@return string[]
@@ -84,22 +103,33 @@ function M.listAvailableGrammars()
 end
 
 ---Installs the plugin from nixpkgs#vimPlugins."name" asyncronously and add it to runtimepath upon completion
----@param name string
+---@param name string A fully qualified flake output attribute (`nixpkgs#path.to.plugin`; `#` must be present) or plugin name, as listed in `nixpkgs#vimPlugins`
 function M.includePlugin(name)
-	local expr = string.format(
-		[[
+	if name:match('#') then
+		install_plugin(
+			name,
+			false,
+			string.format('Added plugin "%s" to runtimepath', name),
+			'nix building plugin "' .. name .. '": '
+		)
+	else
+		local expr = string.format(
+			[[
 		let
 			pkgs = import <nixpkgs> {};
 		in with pkgs;
 			vimPlugins.%s
 		]],
-		name
-	)
+			name
+		)
 
-	install_plugin(expr,
-		string.format('Added plugin "%s" to runtimepath', name),
-		'nix building plugin "' .. name .. '": '
-	)
+		install_plugin(
+			expr,
+			true,
+			string.format('Added plugin "%s" to runtimepath', name),
+			'nix building plugin "' .. name .. '": '
+		)
+	end
 end
 
 ---@return string[]
