@@ -26,14 +26,18 @@ local function install_plugin(nixExpr, succMsg, failMsg)
 				end
 			end,
 			on_stdout = function(_, data, _)
-				local path = data[1]
-				if not vim.tbl_contains(vim.opt.runtimepath:get(), path) then
-					vim.opt.runtimepath:prepend(path)
+				local pluginPath = data[1]
+				if pluginPath == '' then
+					vim.notify(failMsg .. "something went wrong", vim.log.levels.ERROR)
+					return
+				end
+				if not vim.tbl_contains(vim.opt.runtimepath:get(), pluginPath) then
+					vim.opt.runtimepath:prepend(pluginPath)
 					-- mimics the behavior of :packadd
-					source_dir(path .. '/plugin')
+					source_dir(pluginPath .. '/plugin')
 					-- XXX: I don't know if there's a better way to detect if ft detection is on
 					if vim.fn.exists("#filetypedetect") == 1 then
-						pcall(vim.cmd.source, path .. '/ftdetect/*.vim')
+						pcall(vim.cmd.source, pluginPath .. '/ftdetect/*.vim')
 					end
 					vim.notify(succMsg)
 				end
