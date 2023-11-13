@@ -21,6 +21,12 @@ Configures the options to be used by the plugin.
 
                                          *nixrun-treesitter* *NixRunTSGrammar*
 
+Syntax: `NixRunTSGrammar <grammarName or flakeref#attrpath>`
+
+- `grammarName` can be any of those listed in
+  `nixpkgs#vimPlugins.nvim-treesitter.builtGrammars`.
+- see |flake-output-attribute| for explaination on `flakeref#attrpath`
+
 Temporarily install a treesitter grammar for this session. After the grammar
 is successfully installed, the buffer must be reloaded using |:edit| for
 treesitter highlighting to take effect.
@@ -29,6 +35,11 @@ treesitter highlighting to take effect.
 <
 
                                                 *nixrun-plugin* *NixRunPlugin*
+
+Syntax: `NixRunPlugin <pluginName or flakeref#attrpath>`
+
+- `pluginName` can be any of those listed in `nixpkgs#vimPlugins`
+- see |flake-output-attribute| for explaination on `flakeref#attrpath`
 
 Temporarily install a plugin for this session. After the plugin is
 successfully installed, mimicking |:packadd|, the following files are sourced:
@@ -44,6 +55,16 @@ Example:
 
 >vim
     NixRunPlugin oil-nvim
+    NixRunPlugin nixpkgs#vimPlugins.oil-nvim
 <
+
+                                                      *flake-output-attribute*
+
+A Flake output attribute is a string in the form of `flakeref#attrpath`, e.g.
+`nixpkgs#vimPlugins.nvim-treesitter`. For more details, see the "Flake output
+attribute" section in `nix --help`.
+
+Note that in within this plugin, `#` is NOT optional - this is to
+differentiate between a flake output attribute and shorthand plugin names.
 
 vim:tw=78:ts=8:sw=4:et:ft=help:norl:
