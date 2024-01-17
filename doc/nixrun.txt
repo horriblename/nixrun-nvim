@@ -15,7 +15,7 @@ Configures the options to be used by the plugin.
     require("nixrun").setup({
         -- registry/url of nixpkgs, e.g. "flake:nixpkgs",
         -- "/home/user/nixpkgs", "channel:nixos-21.05"
-        nixpkgs = "nixpkgs",
+        nixpkgs = "flake:nixpkgs",
     })
 <
 
