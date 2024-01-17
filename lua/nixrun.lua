@@ -10,7 +10,7 @@ local M = {}
 local function with_defaults(options)
 	-- TODO: warn unknown flags
 	return {
-		nixpkgs = "nixpkgs" or options.nixpkgs
+		nixpkgs = options.nixpkgs or "nixpkgs",
 	}
 end
 
