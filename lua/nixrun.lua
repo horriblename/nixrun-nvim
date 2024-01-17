@@ -10,7 +10,7 @@ local M = {}
 local function with_defaults(options)
 	-- TODO: warn unknown flags
 	return {
-		nixpkgs = options.nixpkgs or "nixpkgs",
+		nixpkgs = options.nixpkgs or "flake:nixpkgs",
 	}
 end
 
