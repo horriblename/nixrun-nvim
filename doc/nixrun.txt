@@ -36,13 +36,26 @@ treesitter highlighting to take effect.
 
                                                 *nixrun-plugin* *NixRunPlugin*
 
-Syntax: `NixRunPlugin <pluginName or flakeref#attrpath>`
+Syntax: `NixRunPlugin <pluginName or flakeref#attrpath or flakerefUrl>`
 
 - `pluginName` can be any of those listed in `nixpkgs#vimPlugins`
 - see |flake-output-attribute| for explaination on `flakeref#attrpath`
+- `flakerefUrl` is something like `github:owner/repo`. See |flakeref|.
+  flakrefs are NOT treated as flakes, we are just using the convenient URL
+  syntax.
 
-Temporarily install a plugin for this session. After the plugin is
-successfully installed, mimicking |:packadd|, the following files are sourced:
+Temporarily install a plugin for this session. 
+
+Example:
+
+>vim
+    NixRunPlugin oil-nvim
+    NixRunPlugin nixpkgs#vimPlugins.oil-nvim
+    NixRunPlugin github:t-troebst/perfanno.nvim
+<
+
+Install procedure: After the plugin is successfully installed, mimicking
+|:packadd|, the following files are sourced:
 >
     /nix/store/plugin-dir/plugin/**/*.vim
     /nix/store/plugin-dir/plugin/**/*.lua
@@ -51,20 +64,18 @@ successfully installed, mimicking |:packadd|, the following files are sourced:
     /nix/store/plugin-dir/ftdetect/*.vim
 <
 
-Example:
-
->vim
-    NixRunPlugin oil-nvim
-    NixRunPlugin nixpkgs#vimPlugins.oil-nvim
-<
-
-                                                      *flake-output-attribute*
+                                           *flakeref* *flake-output-attribute*
 
 A Flake output attribute is a string in the form of `flakeref#attrpath`, e.g.
 `nixpkgs#vimPlugins.nvim-treesitter`. For more details, see the "Flake output
 attribute" section in `nix --help`.
 
-Note that in within this plugin, `#` is NOT optional - this is to
-differentiate between a flake output attribute and shorthand plugin names.
+`flakeref` is a shorthand for common URLs, e.g. `github:owner/repo`
+
+Note that in within this plugin, a distinction is made between
+`flakeref#attrPath` and `flakeref`:
+
+- `flakeref#attrPath` installs a package of a valid flake.
+- `flakeref` alone treats the url as the vim plugin source.
 
 vim:tw=78:ts=8:sw=4:et:ft=help:norl:
