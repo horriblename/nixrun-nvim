@@ -19,9 +19,12 @@ NixRunTSGrammar # installs a treesitter parser
 NixRunPlugin    # installs a vim plugin
 ```
 
-- Treesitter parsers are taken from `nixpkgs#vimPlugins.nvim-treesitter.builtGrammars`.
-- Plugins are taken from `nixpkgs#vimPlugins`
-- Tab completion is available
+- Treesitter parsers are taken from `nixpkgs#vimPlugins.nvim-treesitter.builtGrammars`
+- Plugins are taken from `nixpkgs#vimPlugins`,
+  or a custom flake: `yourFlake#some-plugin`,
+  or a flakeref URL: `github:t-troebst/perfanno.nvim`
+
+- Tab completion is available for the simple nixpkgs parsers/plugins
 
 ## Example
 
