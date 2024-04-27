@@ -159,18 +159,6 @@ function M.includeGrammar(name)
 	end
 end
 
----@return string[]
-function M.listAvailableGrammars()
-	if M._installable_parsers then
-		return M._installable_parsers
-	end
-
-	local cmd = { "nix", "eval", "--json", "nixpkgs#vimPlugins.nvim-treesitter.builtGrammars", "--apply",
-		"builtins.attrNames" }
-	M._installable_parsers = vim.fn.json_decode(vim.fn.system(cmd))
-	return M._installable_parsers
-end
-
 ---Installs the plugin asyncronously and add it to runtimepath upon completion
 ---@param name string A fully qualified flake output attribute (`nixpkgs#path.to.plugin`; `#` must be present) or plugin name, as listed in `nixpkgs#vimPlugins`
 function M.includePlugin(name)
@@ -209,13 +197,63 @@ function M.includePlugin(name)
 end
 
 ---@return string[]
+function M.listAvailableGrammars()
+	if M._installable_parsers then
+		return M._installable_parsers
+	end
+
+	local stdout, stderr
+	local cmd = { "nix", "eval", "--json", "nixpkgs#vimPlugins.nvim-treesitter.builtGrammars", "--apply",
+		"builtins.attrNames" }
+
+	local job_id = vim.fn.jobstart(
+		cmd,
+		{
+			on_exit = function(_, exitcode, _)
+				if exitcode ~= 0 then
+					vim.notify(table.concat(stderr, "\n"), vim.log.levels.ERROR)
+				end
+			end,
+			on_stdout = function(_, data, _) stdout = data end,
+			on_stderr = function(_, data, _) stderr = data end,
+			stdout_buffered = true,
+			stderr_buffered = true,
+		}
+	)
+
+	-- TODO: handle jobwait errors
+	vim.fn.jobwait({ job_id })
+	M._installable_parsers = vim.fn.json_decode(stdout)
+	return M._installable_parsers
+end
+
+---@return string[]
 function M.listAvailablePlugins()
 	if M._installable_plugins then
 		return M._installable_plugins
 	end
 
+	local stderr, stdout
+
 	local cmd = { "nix", "eval", "--json", "nixpkgs#vimPlugins", "--apply", "builtins.attrNames" }
-	M._installable_plugins = vim.fn.json_decode(vim.fn.system(cmd))
+	local job_id = vim.fn.jobstart(
+		cmd,
+		{
+			on_exit = function(_, exitcode, _)
+				if exitcode ~= 0 then
+					vim.notify(table.concat(stderr, "\n"), vim.log.levels.ERROR)
+				end
+			end,
+			on_stdout = function(_, data, _) stdout = data end,
+			on_stderr = function(_, data, _) stderr = data end,
+			stdout_buffered = true,
+			stderr_buffered = true,
+		}
+	)
+
+	-- TODO: handle jobwait errors
+	vim.fn.jobwait({ job_id })
+	M._installable_plugins = vim.fn.json_decode(stdout)
 	return M._installable_plugins
 end
 
