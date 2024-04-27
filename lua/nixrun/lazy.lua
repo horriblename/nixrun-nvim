@@ -159,18 +159,6 @@ function M.includeGrammar(name)
 	end
 end
 
----@return string[]
-function M.listAvailableGrammars()
-	if M._installable_parsers then
-		return M._installable_parsers
-	end
-
-	local cmd = { "nix", "eval", "--json", "nixpkgs#vimPlugins.nvim-treesitter.builtGrammars", "--apply",
-		"builtins.attrNames" }
-	M._installable_parsers = vim.fn.json_decode(vim.fn.system(cmd))
-	return M._installable_parsers
-end
-
 ---Installs the plugin asyncronously and add it to runtimepath upon completion
 ---@param name string A fully qualified flake output attribute (`nixpkgs#path.to.plugin`; `#` must be present) or plugin name, as listed in `nixpkgs#vimPlugins`
 function M.includePlugin(name)
@@ -206,6 +194,18 @@ function M.includePlugin(name)
 			'nix building plugin "' .. name .. '": '
 		)
 	end
+end
+
+---@return string[]
+function M.listAvailableGrammars()
+	if M._installable_parsers then
+		return M._installable_parsers
+	end
+
+	local cmd = { "nix", "eval", "--json", "nixpkgs#vimPlugins.nvim-treesitter.builtGrammars", "--apply",
+		"builtins.attrNames" }
+	M._installable_parsers = vim.fn.json_decode(vim.fn.system(cmd))
+	return M._installable_parsers
 end
 
 ---@return string[]
