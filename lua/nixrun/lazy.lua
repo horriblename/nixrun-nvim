@@ -13,9 +13,16 @@ end
 local InstallableType = {
 	-- e.g. 'flakeref#package', see |flake-output-attribute|.
 	FlakeOutputAttribute = 1,
+
 	-- A flakeref url, e.g. github:user/repo
 	FlakeRefUrl = 2,
+
+	-- A nix expression
 	NixExpr = 3,
+
+	-- e.g. multicursors-nvim
+	-- (install_plugin resolves it to nixpkgs#vimPlugins.multicursors-nvim)
+	NixpkgsPlugin = 4,
 }
 
 local errPluginAlreadyLoaded = "plugin already loaded"
@@ -82,7 +89,8 @@ local function install_plugin(installable, kind, succMsg, failMsg)
 			local plugin_path = vim.json.decode(fetch_result_json)['storePath']
 			if plugin_path == nil then
 				vim.notify(
-					failMsg .. "`nix flake prefetch` stdout does not contain JSON property 'storePath': " .. fetch_result_json,
+					failMsg ..
+					"`nix flake prefetch` stdout does not contain JSON property 'storePath': " .. fetch_result_json,
 					vim.log.levels.ERROR)
 				return
 			end
@@ -95,10 +103,26 @@ local function install_plugin(installable, kind, succMsg, failMsg)
 
 			vim.notify(succMsg)
 		end
-	else
+	elseif kind == InstallableType.NixExpr then
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I",
 			string.format("nixpkgs=%s", cfg.nixpkgs), "--expr", installable }
 		on_stdout = on_nix_build_stdout(succMsg, failMsg)
+	elseif kind == InstallableType.NixpkgsPlugin then
+		local expr = string.format([[
+			let
+				pkgs = import <nixpkgs> {};
+				target = pkgs.vimPlugins.%s;
+			in
+				[target] ++ (target.dependencies or [])
+		]], vim.json.encode(installable)) -- not fool proof sanitization (${} not removed, but should be fine)
+
+		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure",
+			"-I", string.format("nixpkgs=%s", cfg.nixpkgs),
+			"--expr", expr,
+		}
+		on_stdout = on_nix_build_stdout(succMsg, failMsg)
+	else
+		error("install_plugin: unrecognized InstallableType " .. kind)
 	end
 
 	vim.fn.jobstart(
@@ -177,19 +201,9 @@ function M.includePlugin(name)
 			string.format('nix fetching plugin "%s"', name)
 		)
 	else
-		local expr = string.format(
-			[[
-		let
-			pkgs = import <nixpkgs> {};
-		in with pkgs;
-			vimPlugins.%s
-		]],
-			name
-		)
-
 		install_plugin(
-			expr,
-			InstallableType.NixExpr,
+			name,
+			InstallableType.NixpkgsPlugin,
 			string.format('Added plugin "%s" to runtimepath', name),
 			'nix building plugin "' .. name .. '": '
 		)
