@@ -18,6 +18,8 @@ local InstallableType = {
 	FlakeRefUrl = 2,
 
 	-- A nix expression
+	-- TODO: currently only used by grammar installer, I should remove in
+	-- favor of something more... limiting
 	NixExpr = 3,
 
 	-- e.g. multicursors-nvim
@@ -45,29 +47,29 @@ local function load_plugin_from_path(pluginPath)
 	return nil
 end
 
-local function on_nix_build_stdout(succMsg, failMsg)
-	return function(_, lines, _)
-		local pluginPaths = vim.iter(lines)
-			:filter(function(line) return line ~= "" end)
+local function load_plugin_paths(paths, on_ok, on_fail)
+	local plugin_paths = vim.iter(paths)
+		:filter(function(line) return line ~= "" end)
 
-		local err = pluginPaths
-			:map(load_plugin_from_path)
-			:join('\n')
+	paths = plugin_paths:totable()
 
-		if err ~= '' then
-			vim.notify(failMsg .. err, vim.log.levels.ERROR)
-			return
-		end
+	local err = vim.iter(paths)
+		:map(load_plugin_from_path)
+		:join('\n')
 
-		vim.notify(succMsg)
+	if err ~= '' then
+		on_fail(err)
+		return
 	end
+
+	on_ok(paths)
 end
 
 ---@param installable string nix expression or |flake-output-attribute|, depending on `isExpr`
 ---@param kind InstallableType if true, treat `installable` as a nix expr, otherwise it is a |flake-output-attribute|
----@param succMsg string
----@param failMsg string
-local function install_plugin(installable, kind, succMsg, failMsg)
+---@param on_ok fun(paths: string[]) The first entry in paths is the target plugin, rest are dependencies
+---@param on_fail fun(error: string)
+local function install_plugin(installable, kind, on_ok, on_fail)
 	local cfg = require("nixrun").options
 	local logs = {}
 
@@ -75,38 +77,41 @@ local function install_plugin(installable, kind, succMsg, failMsg)
 	if kind == InstallableType.FlakeOutputAttribute then
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I",
 			string.format("nixpkgs=%s", cfg.nixpkgs), installable }
-		on_stdout = on_nix_build_stdout(succMsg, failMsg)
+
+		on_stdout = function(_, lines, _)
+			load_plugin_paths(lines, on_ok, on_fail)
+		end
 	elseif kind == InstallableType.FlakeRefUrl then
 		nix_cmd = { "nix", "flake", "prefetch", "--json", installable }
 		on_stdout = function(_, data, _)
 			local fetch_result_json = data[1]
 			if fetch_result_json == '' then
-				vim.notify(failMsg .. "something went wrong", vim.log.levels.ERROR)
+				on_fail("`nix flake prefetch` returned empty stdout")
 				return
 			end
 
 			---@type string
 			local plugin_path = vim.json.decode(fetch_result_json)['storePath']
 			if plugin_path == nil then
-				vim.notify(
-					failMsg ..
-					"`nix flake prefetch` stdout does not contain JSON property 'storePath': " .. fetch_result_json,
-					vim.log.levels.ERROR)
+				on_fail("`nix flake prefetch` stdout does not contain JSON property 'storePath': " .. fetch_result_json)
 				return
 			end
 
 			local err = load_plugin_from_path(plugin_path)
 			if err ~= nil then
-				vim.notify(failMsg .. err, vim.log.levels.ERROR)
+				on_fail(err)
 				return
 			end
 
-			vim.notify(succMsg)
+			on_ok({ plugin_path })
 		end
 	elseif kind == InstallableType.NixExpr then
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I",
 			string.format("nixpkgs=%s", cfg.nixpkgs), "--expr", installable }
-		on_stdout = on_nix_build_stdout(succMsg, failMsg)
+
+		on_stdout = function(_, lines, _)
+			load_plugin_paths(lines, on_ok, on_fail)
+		end
 	elseif kind == InstallableType.NixpkgsPlugin then
 		local expr = string.format([[
 			let
@@ -120,7 +125,10 @@ local function install_plugin(installable, kind, succMsg, failMsg)
 			"-I", string.format("nixpkgs=%s", cfg.nixpkgs),
 			"--expr", expr,
 		}
-		on_stdout = on_nix_build_stdout(succMsg, failMsg)
+
+		on_stdout = function(_, lines, _)
+			load_plugin_paths(lines, on_ok, on_fail)
+		end
 	else
 		error("install_plugin: unrecognized InstallableType " .. kind)
 	end
@@ -130,7 +138,7 @@ local function install_plugin(installable, kind, succMsg, failMsg)
 		{
 			on_exit = function(_, exitcode, _)
 				if exitcode ~= 0 then
-					vim.notify(failMsg .. "\n" .. table.concat(logs, "\n"), vim.log.levels.ERROR)
+					on_fail("bad exit code: " .. exitcode .. "\n\n" .. table.concat(logs, "\n"))
 				end
 			end,
 			on_stdout = on_stdout,
@@ -150,8 +158,18 @@ function M.includeGrammar(name)
 		install_plugin(
 			name,
 			InstallableType.FlakeOutputAttribute,
-			string.format('Added plugin "%s" to runtimepath', name),
-			'nix building plugin "' .. name .. '": '
+			function(_)
+				vim.notify(
+					string.format('Added grammar "%s" and %d dependencies to runtimepath', name),
+					vim.log.levels.INFO
+				)
+			end,
+			function(err)
+				vim.notify(
+					'nix building plugin "' .. name .. '": ' .. err,
+					vim.log.levels.ERROR
+				)
+			end
 		)
 	elseif name:match(':') then
 		vim.notify("Installing treesitter parsers with flakeref url style e.g. 'github:user/repo' is not supported yet.",
@@ -177,8 +195,18 @@ function M.includeGrammar(name)
 		install_plugin(
 			expr,
 			InstallableType.NixExpr,
-			string.format('Added grammar "%s" to runtimepath', name),
-			'nix building grammar "' .. name .. '": '
+			function(_)
+				vim.notify(
+					string.format('Added grammar "%s" to runtimepath', name),
+					vim.log.levels.INFO
+				)
+			end,
+			function(err)
+				vim.notify(
+					string.format('nix building grammar "%s": %s', name, err),
+					vim.log.levels.ERROR
+				)
+			end
 		)
 	end
 end
@@ -190,22 +218,40 @@ function M.includePlugin(name)
 		install_plugin(
 			name,
 			InstallableType.FlakeOutputAttribute,
-			string.format('Added plugin "%s" to runtimepath', name),
-			'nix building plugin "' .. name .. '": '
+			function(_)
+				vim.notify(
+					string.format('Added plugin "%s" to runtimepath', name),
+					vim.log.levels.INFO
+				)
+			end,
+			function(err)
+				vim.notify(
+					string.format('nix building plugin "%s": %s', name, err),
+					vim.log.levels.ERROR
+				)
+			end
 		)
 	elseif name:match(':') then
 		install_plugin(
 			name,
 			InstallableType.FlakeRefUrl,
-			string.format('Added plugin "%s" to runtimepath', name),
-			string.format('nix fetching plugin "%s"', name)
+			function(_)
+				vim.notify(string.format('Added plugin "%s" to runtimepath', name))
+			end,
+			function(err)
+				vim.notify(string.format('nix fetching plugin "%s": %s', name, err), vim.log.levels.ERROR)
+			end
 		)
 	else
 		install_plugin(
 			name,
 			InstallableType.NixpkgsPlugin,
-			string.format('Added plugin "%s" to runtimepath', name),
-			'nix building plugin "' .. name .. '": '
+			function(plugin_paths)
+				vim.notify(string.format('Added plugin "%s" and %d dependencies to runtimepath', name, #plugin_paths - 1))
+			end,
+			function(err)
+				vim.notify(string.format('nix building plugin "%s": %s', name, err), vim.log.levels.ERROR)
+			end
 		)
 	end
 end
