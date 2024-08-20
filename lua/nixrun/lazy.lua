@@ -39,15 +39,15 @@ local function load_plugin_from_path(pluginPath)
 end
 
 local function on_nix_build_stdout(succMsg, failMsg)
-	return function(_, data, _)
-		local pluginPath = data[1]
-		if pluginPath == '' then
-			vim.notify(failMsg .. "something went wrong", vim.log.levels.ERROR)
-			return
-		end
+	return function(_, lines, _)
+		local pluginPaths = vim.iter(lines)
+			:filter(function(line) return line ~= "" end)
 
-		local err = load_plugin_from_path(pluginPath)
-		if err ~= nil then
+		local err = pluginPaths
+			:map(load_plugin_from_path)
+			:join('\n')
+
+		if err ~= '' then
 			vim.notify(failMsg .. err, vim.log.levels.ERROR)
 			return
 		end
