@@ -38,7 +38,8 @@ treesitter highlighting to take effect.
 
 Syntax: `NixRunPlugin <pluginName or flakeref#attrpath or flakerefUrl>`
 
-- `pluginName` can be any of those listed in `nixpkgs#vimPlugins`
+- `pluginName` can be any of those listed in `nixpkgs#vimPlugins`. Entries of
+  this type will also install its dependencies.
 - see |flake-output-attribute| for explaination on `flakeref#attrpath`
 - `flakerefUrl` is something like `github:owner/repo`. See |flakeref|.
   flakrefs are NOT treated as flakes, we are just using the convenient URL
@@ -49,8 +50,15 @@ Temporarily install a plugin for this session.
 Example:
 
 >vim
+    " adds nixpkgs#vimPlugins.oil-nvim + dependencies to runtimepath
     NixRunPlugin oil-nvim
-    NixRunPlugin nixpkgs#vimPlugins.oil-nvim
+
+    " adds my-personal-flake#my-custom-plugin to runtimepath (dependency not 
+    " included currently :c )
+    NixRunPlugin my-personal-flake#my-custom-plugin
+
+    " pulls the repo github:t-troebst/perfanno.nvim and add it to runtimepath,
+    " no dependency resolution
     NixRunPlugin github:t-troebst/perfanno.nvim
 <
 
