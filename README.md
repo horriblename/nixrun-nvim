@@ -28,17 +28,20 @@ NixRunPlugin    # installs a vim plugin
 
 ## Example
 
-Installing treesitter grammars:
-
 ```vim
-:NixRunTSGrammar java
-```
+" Installing treesitter grammars:
+NixRunTSGrammar java    " please reload your buffer after install to use the treesitter grammar
 
-Refresh your buffer (with `:edit`) after the install completes: you will get a notification when that happens.
+" Installing a plugin
+NixRunPlugin oil-nvim   " installs nixpkgs#vimPlugins.oil-nvim + dependencies
+NixRunPlugin custom-flake#custom-plugin       " installs a custom packaged plugin
+NixRunPlugin github:t-troebst/perfanno.nvim   " pull the plugin source from github (not a nix package)
+```
 
 # Note
 
-- I recommend you pin your nixpkgs registry by adding this to your NixOS/home-manager config (mismatched neovim and grammar versions might cause unexpected errors):
+- I recommend you pin your nixpkgs registry by adding this to your NixOS/home-manager config
+  (mismatched neovim and grammar versions might cause unexpected errors):
   ```nix
   nix.registry.nixpkgs.flake = inputs.nixpkgs;
   ```
