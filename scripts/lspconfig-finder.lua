@@ -4,7 +4,7 @@ local function supported_servers()
 end
 
 local function splitLine(str)
-	return string.gmatch(str, '[^\n]')
+	return string.gmatch(str, '[^\n]+')
 end
 
 local function main()
@@ -23,14 +23,17 @@ local function main()
 			if nix_locate then
 				local pkgs = nix_locate:read('*a')
 				nix_locate:close()
-				return vim.iter(splitLine(pkgs)):totable(), server_name
+				return server_name, vim.iter(splitLine(pkgs)):totable()
 			end
 		end)
-		:totable()
 
-	for pkg, server_name in commands do
-		vim.print(server_name .. ':', pkg)
+	local outfile = assert(io.open('gen.txt', 'w'))
+
+	for server_name, pkg in commands do
+		local pkgJoined = table.concat(pkg, ',')
+		outfile:write(server_name .. '=' .. pkgJoined .. '\n')
 	end
+	outfile:close()
 end
 
 main()
