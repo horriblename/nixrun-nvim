@@ -62,6 +62,17 @@ function M.setup(options)
 			nargs = 1,
 		}
 	)
+
+	vim.api.nvim_create_user_command(
+		"NixRunLsp",
+		function(cmd_args)
+			require("nixrun.lazy").setupLsp(cmd_args.args)
+		end,
+		{
+			complete = pluginCompletion,
+			nargs = 1,
+		}
+	)
 end
 
 return M
