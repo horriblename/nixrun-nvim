@@ -1,0 +1,3 @@
+return {
+	package = "nil.out",
+}
