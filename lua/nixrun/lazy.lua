@@ -47,6 +47,9 @@ local function load_plugin_from_path(pluginPath)
 	return nil
 end
 
+---@param paths string[]
+---@param on_ok fun(plugin_paths: string[])
+---@param on_fail fun(string)
 local function load_plugin_paths(paths, on_ok, on_fail)
 	local plugin_paths = vim.iter(paths)
 		:filter(function(line) return line ~= "" end)
@@ -254,6 +257,41 @@ function M.includePlugin(name)
 			end
 		)
 	end
+end
+
+function M.setupLsp(name)
+	local ok, value = pcall(require, 'nixrun.lsp.' .. name)
+	if not ok then
+		error("Config for LSP '" .. name .. "' not found. Please check if it's supported")
+	end
+
+	local pkg = "nixpkgs#" .. value.package
+	-- FIXME: don't add LSP to runtimepath
+	install_plugin(pkg, InstallableType.FlakeOutputAttribute,
+		function(plugin_paths)
+			assert(#plugin_paths == 1)
+			local pkg_path = plugin_paths[1]
+
+			local default_cmd = require('lspconfig.server_configurations.' .. name).default_config.cmd
+			local cmd = nil
+			if type(default_cmd) == "table" then
+				cmd = {
+					vim.fs.joinpath(pkg_path, 'bin', default_cmd[1]),
+					select(2, default_cmd)
+				}
+			else
+				error(string.format('[nixrun] cmd of type %s not supported', type(default_cmd)))
+			end
+			require('lspconfig')[name].setup({
+				cmd = cmd,
+			})
+
+			vim.notify(string.format('Done LSP setup: %s', name))
+		end,
+		function(err)
+			vim.notify(string.format('[nixrun] setting up LSP %s: %s', name, err))
+		end
+	)
 end
 
 ---@return string[]
