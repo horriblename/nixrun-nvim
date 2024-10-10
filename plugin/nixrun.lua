@@ -72,6 +72,7 @@ vim.api.nvim_create_user_command(
 vim.api.nvim_create_user_command(
 	"NixRunTSGrammar",
 	function(cmd_args)
+		vim.deprecate("NixRunTSGrammar", "NixRun grammar")
 		require("nixrun.lazy").includeGrammar(cmd_args.args)
 	end,
 	{
@@ -83,18 +84,8 @@ vim.api.nvim_create_user_command(
 vim.api.nvim_create_user_command(
 	"NixRunPlugin",
 	function(cmd_args)
+		vim.deprecate("NixRunPlugin", "NixRun plugin")
 		require("nixrun.lazy").includePlugin(cmd_args.args)
-	end,
-	{
-		complete = pluginCompletion,
-		nargs = 1,
-	}
-)
-
-vim.api.nvim_create_user_command(
-	"NixRunLsp",
-	function(cmd_args)
-		require("nixrun.lazy").setupLsp(cmd_args.args)
 	end,
 	{
 		complete = pluginCompletion,
