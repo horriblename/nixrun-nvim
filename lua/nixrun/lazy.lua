@@ -228,12 +228,14 @@ end
 
 ---Installs the plugin asyncronously and add it to runtimepath upon completion
 ---@param name string A fully qualified flake output attribute (`nixpkgs#path.to.plugin`; `#` must be present) or plugin name, as listed in `nixpkgs#vimPlugins`
-function M.includePlugin(name)
+---@param on_done fun(paths: string[])?
+function M.includePlugin(name, on_done)
 	if name:match('#') then
 		install_plugin(
 			name,
 			InstallableType.FlakeOutputAttribute,
-			function(_)
+			function(p)
+				if on_done then on_done(p) end
 				vim.notify(
 					string.format('Added plugin "%s" to runtimepath', name),
 					vim.log.levels.INFO
@@ -250,7 +252,8 @@ function M.includePlugin(name)
 		install_plugin(
 			name,
 			InstallableType.FlakeRefUrl,
-			function(_)
+			function(p)
+				if on_done then on_done(p) end
 				vim.notify(string.format('Added plugin "%s" to runtimepath', name))
 			end,
 			function(err)
@@ -262,6 +265,7 @@ function M.includePlugin(name)
 			name,
 			InstallableType.NixpkgsPlugin,
 			function(plugin_paths)
+				if on_done then on_done(plugin_paths) end
 				vim.notify(string.format('Added plugin "%s" and %d dependencies to runtimepath', name, #plugin_paths - 1))
 			end,
 			function(err)
