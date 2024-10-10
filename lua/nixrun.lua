@@ -21,4 +21,10 @@ function M.add_grammar(installable, on_done)
 	require('nixrun.lazy').includeGrammar(installable, on_done)
 end
 
+---@param name string
+---@param on_done fun()?
+function M.add_lsp(name, on_done)
+	require('nixrun.lazy').setupLsp(name, on_done)
+end
+
 return M

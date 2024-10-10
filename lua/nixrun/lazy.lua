@@ -278,7 +278,9 @@ function M.includePlugin(name, on_done)
 	end
 end
 
-function M.setupLsp(name)
+---@param name string
+---@param on_done fun()?
+function M.setupLsp(name, on_done)
 	local ok, value = pcall(require, 'nixrun.lsp.' .. name)
 	if not ok then
 		error("Config for LSP '" .. name .. "' not found. Please check if it's supported")
@@ -305,6 +307,7 @@ function M.setupLsp(name)
 				cmd = cmd,
 			})
 
+			if on_done then on_done() end
 			vim.notify(string.format('Done LSP setup: %s', name))
 		end,
 		function(err)
