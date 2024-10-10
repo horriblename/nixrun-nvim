@@ -1,5 +1,18 @@
 local M = {}
 
+if _G.nixrun_config == nil then
+	_G.nixrun_config = {}
+end
+
+local cfg = _G.nixrun_config
+
+local function default(val, def)
+	if val == nil then
+		return def
+	end
+	return val
+end
+
 ---@type nil|string[]
 M._installable_parsers = nil
 
@@ -73,13 +86,12 @@ end
 ---@param on_ok fun(paths: string[]) The first entry in paths is the target plugin, rest are dependencies
 ---@param on_fail fun(error: string)
 local function install_plugin(installable, kind, on_ok, on_fail)
-	local cfg = require("nixrun").options
 	local logs = {}
 
 	local nix_cmd, on_stdout
 	if kind == InstallableType.FlakeOutputAttribute then
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I",
-			string.format("nixpkgs=%s", cfg.nixpkgs), installable }
+			string.format("nixpkgs=%s", default(cfg.nixpkgs, "nixpkgs")), installable }
 
 		on_stdout = function(_, lines, _)
 			load_plugin_paths(lines, on_ok, on_fail)
