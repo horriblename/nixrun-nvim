@@ -1,16 +1,16 @@
 local M = {}
 
-if _G.nixrun_config == nil then
+if not _G.nixrun_config then
 	_G.nixrun_config = {}
 end
 
 local cfg = _G.nixrun_config
 
 local function default(val, def)
-	if val == nil then
-		return def
+	if val ~= nil then
+		return val
 	end
-	return val
+	return def
 end
 
 ---@type nil|string[]
@@ -122,7 +122,7 @@ local function install_plugin(installable, kind, on_ok, on_fail)
 		end
 	elseif kind == InstallableType.NixExpr then
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I",
-			string.format("nixpkgs=%s", cfg.nixpkgs), "--expr", installable }
+			string.format("nixpkgs=%s", default(cfg.nixpkgs, "nixpkgs")), "--expr", installable }
 
 		on_stdout = function(_, lines, _)
 			load_plugin_paths(lines, on_ok, on_fail)
@@ -137,7 +137,7 @@ local function install_plugin(installable, kind, on_ok, on_fail)
 		]], vim.json.encode(installable)) -- not fool proof sanitization (${} not removed, but should be fine)
 
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure",
-			"-I", string.format("nixpkgs=%s", cfg.nixpkgs),
+			"-I", string.format("nixpkgs=%s", default(cfg.nixpkgs, "nixpkgs")),
 			"--expr", expr,
 		}
 
