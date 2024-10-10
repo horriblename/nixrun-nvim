@@ -168,12 +168,14 @@ end
 
 ---Installs the grammar asyncronously and add it to runtimepath upon completion
 ---@param name string A |flake-output-attribute| or grammar name, as listed in `nixpkgs#vimPlugins.nvim-treesitter.builtGrammars`
-function M.includeGrammar(name)
+---@param on_done fun(paths: string[])?
+function M.includeGrammar(name, on_done)
 	if name:match('#') then
 		install_plugin(
 			name,
 			InstallableType.FlakeOutputAttribute,
-			function(_)
+			function(p)
+				if on_done then on_done(p) end
 				vim.notify(
 					string.format('Added grammar "%s" and %d dependencies to runtimepath', name),
 					vim.log.levels.INFO
@@ -210,7 +212,8 @@ function M.includeGrammar(name)
 		install_plugin(
 			expr,
 			InstallableType.NixExpr,
-			function(_)
+			function(p)
+				if on_done then on_done(p) end
 				vim.notify(
 					string.format('Added grammar "%s" to runtimepath', name),
 					vim.log.levels.INFO

@@ -15,4 +15,10 @@ function M.add_plugin(installable, on_done)
 	require('nixrun.lazy').includePlugin(installable, on_done)
 end
 
+---@param installable string
+---@param on_done fun(paths: string[])?
+function M.add_grammar(installable, on_done)
+	require('nixrun.lazy').includeGrammar(installable, on_done)
+end
+
 return M
