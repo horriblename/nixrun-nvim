@@ -1,78 +1,12 @@
 local M = {}
 
----@alias nixpkgsPath string
-
----@class NixrunConfig
----@field nixpkgs string registry/url of nixpkgs, e.g. "flake:nixpkgs", "/home/user/nixpkgs", "channel:nixos-21.05"
-
----@param options table
----@return NixrunConfig
-local function with_defaults(options)
-	-- TODO: warn unknown flags
-	return {
-		nixpkgs = options.nixpkgs or "flake:nixpkgs",
-	}
-end
-
----@type NixrunConfig
-M.options = with_defaults({})
-
----@param argLead string
----@return string[]
-local function grammarCompletion(argLead, _, _)
-	local grammars = require("nixrun.lazy").listAvailableGrammars()
-	if argLead == '' then
-		return grammars
-	end
-	return vim.fn.matchfuzzy(grammars, argLead)
-end
-
----@param argLead string
----@return string[]
-local function pluginCompletion(argLead, _, _)
-	local grammars = require("nixrun.lazy").listAvailablePlugins()
-	if argLead == '' then
-		return grammars
-	end
-	return vim.fn.matchfuzzy(grammars, argLead)
+M.get_default_config = function()
+	return require('nixrun.config').default_config
 end
 
 ---@param options NixrunConfig
 function M.setup(options)
-	M.options = with_defaults(options or {})
-
-	vim.api.nvim_create_user_command(
-		"NixRunTSGrammar",
-		function(cmd_args)
-			require("nixrun.lazy").includeGrammar(cmd_args.args)
-		end,
-		{
-			complete = grammarCompletion,
-			nargs = 1,
-		}
-	)
-
-	vim.api.nvim_create_user_command(
-		"NixRunPlugin",
-		function(cmd_args)
-			require("nixrun.lazy").includePlugin(cmd_args.args)
-		end,
-		{
-			complete = pluginCompletion,
-			nargs = 1,
-		}
-	)
-
-	vim.api.nvim_create_user_command(
-		"NixRunLsp",
-		function(cmd_args)
-			require("nixrun.lazy").setupLsp(cmd_args.args)
-		end,
-		{
-			complete = pluginCompletion,
-			nargs = 1,
-		}
-	)
+	_G.nixrun_config = vim.tbl_deep_extend(_G.nixrun_config, options)
 end
 
 return M
