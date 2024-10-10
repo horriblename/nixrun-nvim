@@ -6,7 +6,7 @@ end
 
 ---@param options NixrunConfig
 function M.setup(options)
-	_G.nixrun_config = vim.tbl_deep_extend(_G.nixrun_config, options)
+	_G.nixrun_config = vim.tbl_deep_extend(_G.nixrun_config, options or {})
 end
 
 ---@param installable string
