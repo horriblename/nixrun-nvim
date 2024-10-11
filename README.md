@@ -2,6 +2,10 @@
 
 Provides commands to easily install treesitter grammars and plugins _temporarily_.
 
+> [!NOTE]
+> 
+> Check out the [v2 branch](https://github.com/horriblename/nixrun-nvim/tree/v2)
+
 # Setup
 
 put this in your `init.lua`
