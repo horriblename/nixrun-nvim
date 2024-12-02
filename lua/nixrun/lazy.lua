@@ -296,7 +296,11 @@ function M.setupLsp(name, on_done)
 			assert(#plugin_paths == 1)
 			local pkg_path = plugin_paths[1]
 
-			local default_cmd = require('lspconfig.server_configurations.' .. name).default_config.cmd
+			local entry = require('lspconfig')[name]
+			if entry == nil then
+				error("lspconfig does not contain the entry: " .. name)
+			end
+			local default_cmd = entry.config_def.cmd
 			local cmd = nil
 			if type(default_cmd) == "table" then
 				cmd = {
