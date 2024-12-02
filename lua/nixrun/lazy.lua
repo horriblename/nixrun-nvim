@@ -281,9 +281,12 @@ end
 ---@param name string
 ---@param on_done fun()?
 function M.setupLsp(name, on_done)
-	local ok, value = pcall(require, 'nixrun.lsp.' .. name)
+	local ok, value = pcall(require, 'nixrun.overrides.' .. name)
 	if not ok then
-		error("Config for LSP '" .. name .. "' not found. Please check if it's supported")
+		ok, value = pcall(require, 'nixrun.lsp.' .. name)
+		if not ok then
+			error("Config for LSP '" .. name .. "' not found. Please check if it's supported")
+		end
 	end
 
 	local pkg = "nixpkgs#" .. value.package
