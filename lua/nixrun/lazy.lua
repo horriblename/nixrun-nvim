@@ -300,7 +300,7 @@ function M.setupLsp(name, on_done)
 			if entry == nil then
 				error("lspconfig does not contain the entry: " .. name)
 			end
-			local default_cmd = entry.config_def.cmd
+			local default_cmd = entry.config_def.default_config.cmd
 			local cmd = nil
 			if type(default_cmd) == "table" then
 				cmd = {
