@@ -1,3 +1,9 @@
+if vim.g.nixrun_loaded then
+	return
+end
+
+vim.g.nixrun_loaded = 1
+
 ---@param argLead string
 ---@return string[]
 local function grammarCompletion(argLead, _, _)
