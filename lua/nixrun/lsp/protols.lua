@@ -1,0 +1,3 @@
+return {
+	package = "protols.out",
+}
