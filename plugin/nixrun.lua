@@ -24,6 +24,25 @@ local function pluginCompletion(argLead, _, _)
 	return vim.fn.matchfuzzy(grammars, argLead)
 end
 
+---@return string[]
+local function lspCompletion(_, _, _)
+	local lsps = vim.fn.globpath(vim.o.rtp, 'lua/nixrun/lsp/*.lua', 0, 1)
+	for i, lsp in ipairs(lsps) do
+		lsps[i] = vim.fn.fnamemodify(lsp, ':t:r')
+	end
+
+	local n = #lsps
+
+	for i, lsp in ipairs(vim.fn.globpath(
+		vim.o.rtp,
+		'lua/nixrun/overrides/*.lua', 0, 1))
+	do
+		lsps[n + i] = vim.fn.fnamemodify(lsp, ':t:r')
+	end
+
+	return lsps
+end
+
 local function cmdCompletion(argLead, cmdline, cursorPos)
 	local argsBefore = vim.fn.split(string.sub(cmdline, 1, cursorPos), '', 1)
 	if #argsBefore <= 2 then
@@ -34,6 +53,8 @@ local function cmdCompletion(argLead, cmdline, cursorPos)
 		return pluginCompletion(argLead, cmdline, cursorPos)
 	elseif argsBefore[2] == "grammar" then
 		return grammarCompletion(argLead, cmdline, cursorPos)
+	elseif argsBefore[2] == "lsp" then
+		return lspCompletion(argLead, cmdline, cursorPos)
 	end
 end
 
