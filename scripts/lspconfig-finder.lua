@@ -17,6 +17,7 @@ return {
 }
 ]]
 
+---generates nixpkgs to lspconfig mappings based on command name
 local function main()
 	local skipped = 0
 	local no_pkg = 0
