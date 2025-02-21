@@ -1,5 +1,5 @@
 local function supported_servers()
-	return vim.iter(vim.fs.dir(vim.api.nvim__get_runtime({ 'lua/lspconfig/server_configurations' }, false, {})[1]))
+	return vim.iter(vim.fs.dir(vim.api.nvim__get_runtime({ 'lua/lspconfig/configs' }, false, {})[1]))
 		:map(function(fname) return string.gsub(fname, '.lua$', '') end)
 end
 
@@ -10,7 +10,7 @@ end
 local function main()
 	local commands = supported_servers()
 		:map(function(server_name)
-			local cmd = require('lspconfig.server_configurations.' .. server_name).default_config.cmd
+			local cmd = require('lspconfig.configs.' .. server_name).default_config.cmd
 			if type(cmd) == 'table' then
 				return cmd[1], server_name
 			else
