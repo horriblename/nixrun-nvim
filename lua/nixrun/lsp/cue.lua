@@ -1,0 +1,3 @@
+return {
+	package = "cue.out",
+}
