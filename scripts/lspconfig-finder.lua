@@ -7,8 +7,19 @@ local function splitLine(str)
 	return string.gmatch(str, '[^\n]+')
 end
 
+local function moduleExists(mod)
+	return pcall(require, mod)
+end
+
 local function main()
 	local commands = supported_servers()
+		:filter(function(server_name)
+			-- filter out LSPs we already know
+			local skip = moduleExists('nixrun.lsp.' .. server_name)
+				or moduleExists('nixrun.overrides.' .. server_name)
+			if skip then skipped = skipped + 1 end
+			return not skip
+		end)
 		:map(function(server_name)
 			local cmd = require('lspconfig.configs.' .. server_name).default_config.cmd
 			if type(cmd) == 'table' then
