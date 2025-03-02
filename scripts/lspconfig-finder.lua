@@ -11,7 +11,7 @@ local function moduleExists(mod)
 	return pcall(require, mod)
 end
 
-local binding_format = [[
+local binding_template = [[
 return {
 	package = "%s",
 }
@@ -32,7 +32,7 @@ local function main()
 			return not skip
 		end)
 		:map(function(server_name)
-			local cmd = require('lspconfig.configs.' .. server_name).default_config.cmd
+			local cmd = require('lspconfig')[server_name].config_def.default_config.cmd
 			if type(cmd) == 'table' then
 				return cmd[1], server_name
 			else
@@ -55,7 +55,7 @@ local function main()
 		if #pkg == 1 then
 			single_pkg = single_pkg + 1
 			local f = assert(io.open('lua/nixrun/lsp/' .. server_name .. '.lua', 'w'))
-			f:write(binding_format:format(pkg))
+			f:write(binding_template:format(pkg))
 			f:close()
 		elseif #pkg == 0 then
 			no_pkg = no_pkg + 1
