@@ -305,7 +305,7 @@ function M.setupLsp(name, on_done)
 			if type(default_cmd) == "table" then
 				cmd = {
 					vim.fs.joinpath(pkg_path, 'bin', default_cmd[1]),
-					select(2, default_cmd)
+					unpack(default_cmd, 2)
 				}
 			else
 				error(string.format('[nixrun] cmd of type %s not supported', type(default_cmd)))
