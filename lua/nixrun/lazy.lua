@@ -296,11 +296,14 @@ function M.setupLsp(name, on_done)
 			assert(#plugin_paths == 1)
 			local pkg_path = plugin_paths[1]
 
-			local entry = require('lspconfig')[name]
+			local entry = vim.lsp.config[name]
 			if entry == nil then
-				error("lspconfig does not contain the entry: " .. name)
+				error("no vim.lsp.config found for " .. name .. ", did you forget to install lspconfig?")
 			end
-			local default_cmd = entry.config_def.default_config.cmd
+			local default_cmd = entry.cmd
+			if default_cmd == nil then
+				error("something went wrong: nil cmd in vim.lsp.config of " .. name .. ", please report this bug")
+			end
 			local cmd = nil
 			if type(default_cmd) == "table" then
 				cmd = {
@@ -310,9 +313,8 @@ function M.setupLsp(name, on_done)
 			else
 				error(string.format('[nixrun] cmd of type %s not supported', type(default_cmd)))
 			end
-			require('lspconfig')[name].setup({
-				cmd = cmd,
-			})
+			vim.lsp.config(name, { cmd = cmd })
+			vim.lsp.enable(name)
 
 			if on_done then on_done() end
 			vim.notify(string.format('Done LSP setup: %s', name))
