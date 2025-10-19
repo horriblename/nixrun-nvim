@@ -107,6 +107,13 @@ Example:
     end)
 <
 
+                                            *nixrun-program* *:NixRun-program*
+
+Syntax: `NixRun program <installable>`
+
+Adds a program to $PATH. Same syntax for installables as nix3 commands 
+(`nix shell` etc.).
+
                                            *flakeref* *flake-output-attribute*
 
 A Flake output attribute is a string in the form of `flakeref#attrpath`, e.g.
