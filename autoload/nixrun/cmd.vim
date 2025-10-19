@@ -26,7 +26,7 @@ endfu
 fu! nixrun#cmd#cmdCompletion(argLead, cmdline, cursorPos)
 	let argsBefore = split(a:cmdline[:a:cursorPos])
 	if len(argsBefore) <= 1 || (len(argsBefore) == 2 && a:cmdline[a:cursorPos-1] !=# ' ')
-		return "plugin\ngrammar\nlsp"
+		return "plugin\ngrammar\nlsp\nprogram"
 	endif
 
 	if argsBefore[1] == 'plugin'

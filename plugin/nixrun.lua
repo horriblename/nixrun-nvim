@@ -32,6 +32,13 @@ vim.api.nvim_create_user_command(
 			end
 
 			require('nixrun.lazy').includeGrammar(cmd_args.fargs[2])
+		elseif cmd_args.fargs[1] == "program" then
+			if cmd_args.fargs[2] == nil then
+				log_error("Missing argument: program")
+				return
+			end
+
+			require('nixrun.lazy').includeProgram(cmd_args.fargs[2])
 		else
 			log_error("Unknown subcommand " .. cmd_args.fargs[1])
 		end
