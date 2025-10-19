@@ -1,27 +1,18 @@
 *nixrun.txt* (ab)use the power of imperative nix in neovim
 
+================================================================================
 Introduction                                             *nixrun-introduction*
 
 NixRun provides a convenient way to install plugins temporarily, like the 
 `nix run` command.
 
 The commands |NixRun| is used to install plugins, LSPs, and treesitter
-parsers.
+parsers. There is a Lua API as well |nixrun-lua-api|.
 
-nixrun.setup({opts})                                          *nixrun.setup()*
+================================================================================
+Commands                                                             *:NixRun*
 
-Configures the options to be used by the plugin.
->lua
-    require("nixrun").setup({
-        -- registry/url of nixpkgs, e.g. "flake:nixpkgs",
-        -- "/home/user/nixpkgs", "channel:nixos-21.05"
-        nixpkgs = "flake:nixpkgs",
-    })
-<
-
-                                                                     *:NixRun*
-
-See |:NixRun-plugin|, |:NixRun-grammar|, and |:NixRun-lsp|
+See |:NixRun-plugin|, |:NixRun-grammar|, |:NixRun-lsp|, and |:NixRun-program|
 
                                           *nixrun-treesitter* *:NixRun-grammar*
 
@@ -89,8 +80,17 @@ Example
 >vim
     NixRun lsp vala_ls
 <
-                                        *nixrun-lua-api* *nixrun.add_plugin()* 
+                                            *nixrun-program* *:NixRun-program*
+
+Syntax: `NixRun program <installable>`
+
+Adds a program to $PATH. Same syntax for installables as nix3 commands 
+(`nix shell` etc.).
+
+================================================================================
+Lua API                                 *nixrun-lua-api* *nixrun.add_plugin()*
                                      *nixrun.add_lsp()* *nixrun.add_grammar()*
+                                                        *nixrun.add_program()*
 
 A lua API is also exposed that does the same thing as |:NixRun| plus run some
 lua code when install completes.
@@ -107,14 +107,8 @@ Example:
     end)
 <
 
-                                            *nixrun-program* *:NixRun-program*
-
-Syntax: `NixRun program <installable>`
-
-Adds a program to $PATH. Same syntax for installables as nix3 commands 
-(`nix shell` etc.).
-
-                                           *flakeref* *flake-output-attribute*
+================================================================================
+Nix concepts                               *flakeref* *flake-output-attribute*
 
 A Flake output attribute is a string in the form of `flakeref#attrpath`, e.g.
 `nixpkgs#vimPlugins.nvim-treesitter`. For more details, see the "Flake output
