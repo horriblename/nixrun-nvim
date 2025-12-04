@@ -48,13 +48,12 @@ local Environment = {
 }
 
 -- TODO: streamline error handling wtf is eventhis
-local errPluginAlreadyLoaded = "plugin already loaded"
 
 ---@param pluginPath string
 ---@return string? error
 local function load_plugin_from_path(pluginPath)
 	if vim.tbl_contains(vim.opt.runtimepath:get(), pluginPath) then
-		return errPluginAlreadyLoaded
+		return nil
 	end
 	vim.opt.runtimepath:prepend(pluginPath)
 	-- mimics the behavior of :packadd
