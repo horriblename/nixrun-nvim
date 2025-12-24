@@ -113,7 +113,7 @@ local function add_paths_to_environment(paths, env, on_ok, on_fail)
 	on_ok(paths)
 end
 
----@param installable string nix expression or |flake-output-attribute|, depending on `isExpr`
+---@param installable string the installable, see also `kind`
 ---@param kind InstallableType if true, treat `installable` as a nix expr, otherwise it is a |flake-output-attribute|
 ---@param env Environment
 ---@param on_ok fun(paths: string[]) The first entry in paths is the target plugin, rest are dependencies
@@ -164,10 +164,10 @@ local function add_to_environment(installable, kind, env, on_ok, on_fail)
 		local expr = string.format([[
 			let
 				pkgs = import <nixpkgs> {};
-				target = pkgs.vimPlugins.%s;
+				target = pkgs.vimPlugins."%s";
 			in
 				[target] ++ (target.dependencies or [])
-		]], vim.json.encode(installable)) -- not fool proof sanitization (${} not removed, but should be fine)
+		]], vim.fn.escape(installable, '\\"$'))
 
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure",
 			"-I", string.format("nixpkgs=%s", default(cfg.nixpkgs, "nixpkgs")),
