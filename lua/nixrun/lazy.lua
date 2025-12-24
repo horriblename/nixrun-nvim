@@ -200,7 +200,8 @@ local function add_to_environment(installable, kind, env, on_ok, on_fail)
 end
 
 ---Installs the grammar asyncronously and add it to runtimepath upon completion
----@param name string A |flake-output-attribute| or grammar name, as listed in `nixpkgs#vimPlugins.nvim-treesitter.builtGrammars`
+---@param name string A |flake-output-attribute| or grammar name, as listed in
+---`nixpkgs#vimPlugins.nvim-treesitter.builtGrammars`
 ---@param on_done fun(paths: string[])?
 function M.includeGrammar(name, on_done)
 	if name:match("#") then
@@ -255,7 +256,8 @@ function M.includeGrammar(name, on_done)
 end
 
 ---Installs the plugin asyncronously and add it to runtimepath upon completion
----@param name string A fully qualified flake output attribute (`nixpkgs#path.to.plugin`; `#` must be present) or plugin name, as listed in `nixpkgs#vimPlugins`
+---@param name string A fully qualified flake output attribute (`nixpkgs#path.to.plugin`; `#` must be present) or plugin
+---name, as listed in `nixpkgs#vimPlugins`
 ---@param on_done fun(paths: string[])?
 function M.includePlugin(name, on_done)
 	if name:match("#") then
@@ -319,7 +321,7 @@ function M.setupLsp(name, on_done)
 				unpack(default_cmd, 2),
 			}
 		else
-			error(string.format("[nixrun] cmd of type %s not supported", type(default_cmd)))
+			error(string.format("cmd of type %s not supported", type(default_cmd)))
 		end
 		vim.lsp.config(name, { cmd = cmd })
 		vim.lsp.enable(name)
@@ -329,7 +331,7 @@ function M.setupLsp(name, on_done)
 		end
 		vim.notify(string.format("Done LSP setup: %s", name))
 	end, function(err)
-		vim.notify(string.format("[nixrun] setting up LSP %s: %s", name, err))
+		vim.notify(string.format("[nixrun] setting up LSP %s: %s", name, err), vim.log.levels.ERROR)
 	end)
 end
 
@@ -343,7 +345,7 @@ function M.includeProgram(name, on_done)
 		end
 		vim.notify(string.format("Done adding %s to $PATH", name))
 	end, function(err)
-		vim.notify(string.format("[nixrun] adding %s: %s", name, err))
+		vim.notify(string.format("[nixrun] adding %s: %s", name, err), vim.log.levels.ERROR)
 	end)
 end
 
