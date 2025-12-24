@@ -23,8 +23,7 @@ Syntax: `NixRun grammar <grammarName or flakeref#attrpath>`
 - see |flake-output-attribute| for explaination on `flakeref#attrpath`
 
 Temporarily install a treesitter grammar for this session. After the grammar
-is successfully installed, the buffer must be reloaded using |:edit| for
-treesitter highlighting to take effect.
+is successfully installed, you might need to reload your buffers with |:edit|.
 >vim
     NixRun grammar clojure
 <

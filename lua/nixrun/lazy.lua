@@ -77,7 +77,7 @@ local function add_path_to_evironment(path, env)
 		return load_plugin_from_path(path)
 	else
 		path = vim.fs.joinpath(path, "bin")
-		local PATH = os.getenv("PATH")
+		local PATH = os.getenv("PATH") or ""
 		for p in vim.gsplit(PATH, ":", { plain = true }) do
 			if p == path then
 				return "target already in PATH: " .. path
@@ -204,11 +204,17 @@ end
 ---`nixpkgs#vimPlugins.nvim-treesitter.builtGrammars`
 ---@param on_done fun(paths: string[])?
 function M.includeGrammar(name, on_done)
+	local on_ok = function(p)
+		for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+			if vim.api.nvim_buf_is_loaded(buf) and vim.treesitter.language.get_lang(vim.bo[buf].filetype) == name then
+				vim.treesitter.start(buf)
+			end
+		end
+		if on_done then on_done(p) end
+	end
 	if name:match("#") then
 		add_to_environment(name, InstallableType.FlakeOutputAttribute, Environment.PluginRtp, function(p)
-			if on_done then
-				on_done(p)
-			end
+			on_ok(p)
 			vim.notify(
 				string.format('Added grammar "%s" and %d dependencies to runtimepath', name),
 				vim.log.levels.INFO
@@ -244,9 +250,7 @@ function M.includeGrammar(name, on_done)
 			InstallableType.NixExpr,
 			Environment.PluginRtp,
 			function(p)
-				if on_done then
-					on_done(p)
-				end
+				on_ok(p)
 				vim.notify(string.format('Added grammar "%s" to runtimepath', name), vim.log.levels.INFO)
 			end, function(err)
 				vim.notify(string.format('nix building grammar "%s": %s', name, err), vim.log.levels.ERROR)
