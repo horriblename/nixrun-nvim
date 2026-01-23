@@ -80,7 +80,7 @@ local function add_path_to_evironment(path, env)
 		local PATH = os.getenv("PATH") or ""
 		for p in vim.gsplit(PATH, ":", { plain = true }) do
 			if p == path then
-				return "target already in PATH: " .. path
+				return nil
 			end
 		end
 
