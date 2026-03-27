@@ -1,3 +1,0 @@
-return {
-	package = "scry.out",
-}
