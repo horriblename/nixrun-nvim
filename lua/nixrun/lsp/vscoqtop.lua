@@ -1,3 +1,3 @@
 return {
-	package = "coqPackages.vscoq-language-server.out",
+	package = "coqPackages.vsrocq-language-server.out",
 }

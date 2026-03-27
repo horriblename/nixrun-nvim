@@ -1,3 +1,3 @@
 return {
-	package = "postgres-lsp.out",
+	package = "postgres-language-server.out",
 }

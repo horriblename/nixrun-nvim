@@ -1,3 +1,3 @@
 return {
-	package = "starpls-bin.out",
+	package = "starpls.out",
 }

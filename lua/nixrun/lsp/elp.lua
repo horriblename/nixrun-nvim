@@ -1,3 +1,3 @@
 return {
-	package = "erlang_language_platform.out",
+	package = "erlang-language-platform.out",
 }

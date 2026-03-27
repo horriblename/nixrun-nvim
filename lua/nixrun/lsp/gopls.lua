@@ -1,3 +1,0 @@
-return {
-	package = "gopls.out",
-}
