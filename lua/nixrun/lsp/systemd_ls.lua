@@ -1,3 +1,3 @@
 return {
-	package = "systemd-language-server.out",
+	package = "systemd-lsp.out",
 }
