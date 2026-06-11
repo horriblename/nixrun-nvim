@@ -9,10 +9,16 @@ M.check = function()
 	}
 
 
-	local ok, err = pcall(vim.validate, schema)
-	if not ok then
-		vim.health.error(err)
-	else
+	local valid = true
+	for key, spec in pairs(schema) do
+		local ok, err = pcall(vim.validate, key, cfg[key], spec)
+		if not ok then
+			vim.health.error(err --[[@as string]])
+			valid = false
+		end
+	end
+
+	if valid then
 		vim.health.ok("Config is valid")
 	end
 end
