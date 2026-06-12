@@ -240,7 +240,7 @@ function M.includeGrammar(name, on_done)
 		let
 			pkgs = import <nixpkgs> {};
 		in with pkgs;
-			neovimUtils.grammarToPlugin vimPlugins.nvim-treesitter.builtGrammars.%s
+			vimPlugins.nvim-treesitter.builtGrammars.%s
 		]],
 			name
 		)
