@@ -58,7 +58,6 @@ local function load_plugin_from_path(pluginPath)
 	vim.opt.runtimepath:prepend(pluginPath)
 	-- mimics the behavior of :packadd
 	source_dir(pluginPath .. '/plugin')
-	-- XXX: I don't know if there's a better way to detect if ft detection is on
 	if vim.fn.exists("#filetypedetect") == 1 then
 		-- NOTE: vim.cmd.source throws an error if no files are found, which is not really a problem
 		pcall(vim.cmd.source, pluginPath .. '/ftdetect/*.vim')
@@ -114,7 +113,7 @@ local function add_paths_to_environment(paths, env, on_ok, on_fail)
 end
 
 ---@param installable string the installable, see also `kind`
----@param kind InstallableType if true, treat `installable` as a nix expr, otherwise it is a |flake-output-attribute|
+---@param kind InstallableType
 ---@param env Environment
 ---@param on_ok fun(paths: string[]) The first entry in paths is the target plugin, rest are dependencies
 ---@param on_fail fun(error: string)
