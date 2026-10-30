@@ -18,18 +18,7 @@ local pawait = async.pawait
 --- | "lsp"
 --- | "grammars"
 
-if not _G.nixrun_config then
-	_G.nixrun_config = {}
-end
-
-local cfg = _G.nixrun_config
-
-local function default(val, def)
-	if val ~= nil then
-		return val
-	end
-	return def
-end
+local cfg = require("nixrun.config").config
 
 local function truncate_line(lines, chars)
 	chars = chars or 60
@@ -152,7 +141,7 @@ local function add_to_environment(installable, kind, env, on_done, category)
 	local process_paths
 	if kind == InstallableType.FlakeOutputAttribute then
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I",
-			string.format("nixpkgs=%s", default(cfg.nixpkgs, "nixpkgs")), installable }
+			string.format("nixpkgs=%s", cfg.nixpkgs), installable }
 
 		process_paths = function(paths)
 			add_paths_to_environment(paths, env, on_done)
@@ -183,7 +172,7 @@ local function add_to_environment(installable, kind, env, on_done, category)
 		end
 	elseif kind == InstallableType.NixExpr then
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I",
-			string.format("nixpkgs=%s", default(cfg.nixpkgs, "nixpkgs")), "--expr", installable }
+			string.format("nixpkgs=%s", cfg.nixpkgs), "--expr", installable }
 
 		process_paths = function(lines)
 			add_paths_to_environment(lines, env, on_done)
@@ -198,7 +187,7 @@ local function add_to_environment(installable, kind, env, on_done, category)
 		]], vim.fn.escape(installable, '\\"$'))
 
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure",
-			"-I", string.format("nixpkgs=%s", default(cfg.nixpkgs, "nixpkgs")),
+			"-I", string.format("nixpkgs=%s", cfg.nixpkgs),
 			"--expr", expr,
 		}
 

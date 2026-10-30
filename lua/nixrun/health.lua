@@ -3,7 +3,8 @@ local M = {}
 M.check = function()
 	vim.health.start("Checking user config")
 
-	local cfg = vim.tbl_deep_extend(require('nixrun').default_config, _G.nixrun_config)
+	-- NOTE: does not check default fields
+	local cfg = require("nixrun.config").config
 	local schema = {
 		nixpkgs = { cfg.nixpkgs, "string" }
 	}

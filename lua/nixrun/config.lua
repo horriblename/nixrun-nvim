@@ -5,3 +5,17 @@ local M = {}
 M.default_config = {
 	nixpkgs = "nixpkgs"
 }
+
+M.config = setmetatable({}, {
+	__index = function(_, key)
+		return M.default_config[key]
+	end
+})
+
+M.update = function(new)
+	for k, v in pairs(new) do
+		M.config[k] = v
+	end
+end
+
+return M
