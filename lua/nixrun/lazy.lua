@@ -102,10 +102,9 @@ local function add_path_to_evironment(path, env)
 end
 
 ---@param paths string[]
----@param on_ok fun(plugin_paths: string[])
 ---@param env Environment
----@param on_fail fun(string)
-local function add_paths_to_environment(paths, env, on_ok, on_fail)
+---@param on_done fun(error: string?, plugin_paths: string[]?)
+local function add_paths_to_environment(paths, env, on_done)
 	local plugin_paths = vim.iter(paths):filter(function(line)
 		return line ~= ""
 	end)
@@ -119,63 +118,62 @@ local function add_paths_to_environment(paths, env, on_ok, on_fail)
 		:join('\n')
 
 	if err ~= '' then
-		on_fail(err)
+		on_done(err, paths)
 		return
 	end
 
-	on_ok(paths)
+	on_done(nil, paths)
 end
 
 ---@param installable string the installable, see also `kind`
 ---@param kind InstallableType
 ---@param env Environment
----@param on_ok fun(paths: string[]) The first entry in paths is the target plugin, rest are dependencies
----@param on_fail fun(error: string)
+---@param on_done fun(error: string?, paths: string[]?) The first entry in paths is the target plugin, rest are deps
 ---@param category NixRun.Category
 ---@return vim.SystemObj
-local function add_to_environment(installable, kind, env, on_ok, on_fail, category)
+local function add_to_environment(installable, kind, env, on_done, category)
 	local logs = {}
 
 	local nix_cmd
 	---@type fun(paths: string[])
-	local on_stdout
+	local process_paths
 	if kind == InstallableType.FlakeOutputAttribute then
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I",
 			string.format("nixpkgs=%s", default(cfg.nixpkgs, "nixpkgs")), installable }
 
-		on_stdout = function(paths)
-			add_paths_to_environment(paths, env, on_ok, on_fail)
+		process_paths = function(paths)
+			add_paths_to_environment(paths, env, on_done)
 		end
 	elseif kind == InstallableType.FlakeRefUrl then
 		nix_cmd = { "nix", "flake", "prefetch", "--json", installable }
-		on_stdout = function(paths)
+		process_paths = function(paths)
 			local fetch_result_json = paths[1]
 			if fetch_result_json == '' then
-				on_fail("`nix flake prefetch` returned empty stdout")
+				on_done("`nix flake prefetch` returned empty stdout")
 				return
 			end
 
 			---@type string
 			local plugin_path = vim.json.decode(fetch_result_json)['storePath']
 			if plugin_path == nil then
-				on_fail("`nix flake prefetch` stdout does not contain JSON property 'storePath': " .. fetch_result_json)
+				on_done("`nix flake prefetch` stdout does not contain JSON property 'storePath': " .. fetch_result_json)
 				return
 			end
 
 			local err = load_plugin_from_path(plugin_path)
 			if err ~= nil then
-				on_fail(err)
+				on_done(err)
 				return
 			end
 
-			on_ok({ plugin_path })
+			on_done(nil, { plugin_path })
 		end
 	elseif kind == InstallableType.NixExpr then
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I",
 			string.format("nixpkgs=%s", default(cfg.nixpkgs, "nixpkgs")), "--expr", installable }
 
-		on_stdout = function(lines)
-			add_paths_to_environment(lines, env, on_ok, on_fail)
+		process_paths = function(lines)
+			add_paths_to_environment(lines, env, on_done)
 		end
 	elseif kind == InstallableType.NixpkgsPlugin then
 		local expr = string.format([[
@@ -191,8 +189,8 @@ local function add_to_environment(installable, kind, env, on_ok, on_fail, catego
 			"--expr", expr,
 		}
 
-		on_stdout = function(lines)
-			add_paths_to_environment(lines, env, on_ok, on_fail)
+		process_paths = function(lines)
+			add_paths_to_environment(lines, env, on_done)
 		end
 	else
 		error("install_plugin: unrecognized InstallableType " .. kind)
@@ -205,9 +203,10 @@ local function add_to_environment(installable, kind, env, on_ok, on_fail, catego
 			M._jobs[category][installable] = nil
 			if status.code ~= 0 then
 				vim.notify(status.stderr, vim.log.levels.ERROR)
-				on_fail("bad exit code: " .. status.code .. "\n\n" .. table.concat(logs, "\n"))
+				on_done("bad exit code: " .. status.code .. "\n\n" .. table.concat(logs, "\n"))
+				return
 			else
-				on_stdout(vim.split(status.stdout, "\n"))
+				process_paths(vim.split(status.stdout, "\n"))
 			end
 		end)
 	)
@@ -220,33 +219,35 @@ end
 ---Installs the grammar asyncronously and add it to runtimepath upon completion
 ---@param name string A |flake-output-attribute| or grammar name, as listed in
 ---`nixpkgs#vimPlugins.nvim-treesitter.builtGrammars`
----@param on_done fun(paths: string[])?
-function M.includeGrammar(name, on_done, on_err)
-	local on_ok = function(p)
-		for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-			if vim.api.nvim_buf_is_loaded(buf) and vim.treesitter.language.get_lang(vim.bo[buf].filetype) == name then
-				vim.treesitter.start(buf)
+---@param on_done fun(err: string?, paths: string[]?)?
+function M.includeGrammar(name, on_done)
+	on_done = on_done or function(err)
+		if err then
+			vim.notify(string.format('nix building grammar "%s": %s', name, err), vim.log.levels.ERROR)
+		else
+			vim.notify(string.format('Added grammar "%s" to runtimepath', name), vim.log.levels.INFO)
+		end
+	end
+	local done = function(err, p)
+		if err == nil then
+			for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+				if vim.api.nvim_buf_is_loaded(buf) and vim.treesitter.language.get_lang(vim.bo[buf].filetype) == name then
+					vim.treesitter.start(buf)
+				end
 			end
 		end
-		if on_done then on_done(p) end
+		if on_done then on_done(err, p) end
 	end
 	if name:match("#") then
-		return add_to_environment(name, InstallableType.FlakeOutputAttribute, Environment.PluginRtp, function(p)
-			on_ok(p)
-			vim.notify(
-				string.format('Added grammar "%s" and %d dependencies to runtimepath', name),
-				vim.log.levels.INFO
-			)
-		end, function(err)
-			vim.notify('nix building plugin "' .. name .. '": ' .. err, vim.log.levels.ERROR)
-			if on_err then on_err(err) end
+		return add_to_environment(name, InstallableType.FlakeOutputAttribute, Environment.PluginRtp, function(err, p)
+			if err then
+				on_done(err)
+				return
+			end
+			done(p)
 		end, "grammars")
 	elseif name:match(":") then
-		vim.notify(
-			"Installing treesitter parsers with flakeref url style e.g. 'github:user/repo' is not supported yet.",
-			vim.log.levels.ERROR
-		)
-		if on_err then on_err("Installing treesitter parsers with flakeref url style e.g. 'github:user/repo' is not supported yet.") end
+		done("Installing treesitter parsers with flakeref url style e.g. 'github:user/repo' is not supported yet.")
 		return nil
 	else
 		-- TODO: avoid impure
@@ -264,13 +265,7 @@ function M.includeGrammar(name, on_done, on_err)
 			expr,
 			InstallableType.NixExpr,
 			Environment.PluginRtp,
-			function(p)
-				on_ok(p)
-				vim.notify(string.format('Added grammar "%s" to runtimepath', name), vim.log.levels.INFO)
-			end, function(err)
-				vim.notify(string.format('nix building grammar "%s": %s', name, err), vim.log.levels.ERROR)
-				if on_err then on_err(err) end
-			end,
+			done,
 			"grammars"
 		)
 	end
@@ -279,108 +274,96 @@ end
 ---Installs the plugin asyncronously and add it to runtimepath upon completion
 ---@param name string A fully qualified flake output attribute (`nixpkgs#path.to.plugin`; `#` must be present) or plugin
 ---name, as listed in `nixpkgs#vimPlugins`
----@param on_done fun(paths: string[])?
-function M.includePlugin(name, on_done, on_err)
+---@param on_done fun(err: string?, paths: string[]?)?
+function M.includePlugin(name, on_done)
+	on_done = on_done or function(err, paths)
+		if err then
+			vim.notify(string.format('nix building plugin "%s": %s', name, err), vim.log.levels.ERROR)
+		else
+			vim.notify(string.format('Added plugin "%s" and %d dependencies to runtimepath', name, #paths - 1))
+		end
+	end
 	if name:match("#") then
-		return add_to_environment(name, InstallableType.FlakeOutputAttribute, Environment.PluginRtp, function(p)
-			if on_done then
-				on_done(p)
-			end
-			vim.notify(string.format('Added plugin "%s" to runtimepath', name), vim.log.levels.INFO)
-		end, function(err)
-			vim.notify(string.format('nix building plugin "%s": %s', name, err), vim.log.levels.ERROR)
-			if on_err then on_err(err) end
-		end, "plugins")
+		return add_to_environment(name, InstallableType.FlakeOutputAttribute, Environment.PluginRtp, on_done, "plugins")
 	elseif name:match(":") then
-		return add_to_environment(name, InstallableType.FlakeRefUrl, Environment.PluginRtp, function(p)
-			if on_done then
-				on_done(p)
-			end
-			vim.notify(string.format('Added plugin "%s" to runtimepath', name))
-		end, function(err)
-			vim.notify(string.format('nix fetching plugin "%s": %s', name, err), vim.log.levels.ERROR)
-			if on_err then on_err(err) end
-		end, "plugins")
+		return add_to_environment(name, InstallableType.FlakeRefUrl, Environment.PluginRtp, on_done, "plugins")
 	else
-		return add_to_environment(name, InstallableType.NixpkgsPlugin, Environment.PluginRtp, function(plugin_paths)
-			if on_done then
-				on_done(plugin_paths)
-			end
-			vim.notify(string.format('Added plugin "%s" and %d dependencies to runtimepath', name, #plugin_paths - 1))
-		end, function(err)
-			vim.notify(string.format('nix building plugin "%s": %s', name, err), vim.log.levels.ERROR)
-			if on_err then on_err(err) end
-		end, "plugins")
+		return add_to_environment(name, InstallableType.NixpkgsPlugin, Environment.PluginRtp, on_done, "plugins")
 	end
 end
 
 ---@param name string
----@param on_done fun()?
-function M.setupLsp(name, on_done, on_err)
+---@param on_done fun(err: string?)?
+function M.setupLsp(name, on_done)
+	on_done = on_done or function(err)
+		if err then
+			vim.notify(err, vim.log.levels.ERROR)
+		else
+			vim.notify(string.format("Done LSP setup: %s", name))
+		end
+	end
 	local ok, value = pcall(require, "nixrun.overrides." .. name)
 	if not ok then
 		ok, value = pcall(require, "nixrun.lsp." .. name)
 		if not ok then
 			local err = "Config for LSP '" .. name .. "' not found. Please check if it's supported"
-			if on_err then on_err(err) end
-			error(err)
+			on_done(err)
+			return
 		end
 	end
 
 	local pkg = "nixpkgs#" .. value.package
-	return add_to_environment(pkg, InstallableType.FlakeOutputAttribute, Environment.None, function(plugin_paths)
+	return add_to_environment(pkg, InstallableType.FlakeOutputAttribute, Environment.None, function(err, plugin_paths)
+		if err then
+			on_done(err)
+			return
+		end
+
 		assert(#plugin_paths == 1)
 		local pkg_path = plugin_paths[1]
 
 		local entry = vim.lsp.config[name]
 		if entry == nil then
-			local err = "no vim.lsp.config found for " .. name .. ", did you forget to install lspconfig?"
-			if on_err then on_err(err) end
-			error(err)
+			err = "no vim.lsp.config found for " .. name .. ", did you forget to install lspconfig?"
+			on_done(err)
+			return
 		end
 		local default_cmd = entry.cmd
 		if default_cmd == nil then
-			local err = "something went wrong: nil cmd in vim.lsp.config of " .. name .. ", please report this bug"
-			if on_err then on_err(err) end
-			error(err)
+			err = "something went wrong: nil cmd in vim.lsp.config of " .. name .. ", please report this bug"
+			on_done(err)
+			return
 		end
-		local cmd = nil
+		local cmd
 		if type(default_cmd) == "table" then
 			cmd = {
 				vim.fs.joinpath(pkg_path, "bin", default_cmd[1]),
 				unpack(default_cmd, 2),
 			}
 		else
-			local err = string.format("cmd of type %s not supported", type(default_cmd))
-			if on_err then on_err(err) end
-			error(err)
+			err = string.format("cmd of type %s not supported", type(default_cmd))
+			on_done(err)
+			return
 		end
 		vim.lsp.config(name, { cmd = cmd })
 		vim.lsp.enable(name)
 
-		if on_done then
-			on_done()
-		end
-		vim.notify(string.format("Done LSP setup: %s", name))
-	end, function(err)
-		vim.notify(string.format("[nixrun] setting up LSP %s: %s", name, err), vim.log.levels.ERROR)
-		if on_err then on_err(err) end
+		on_done()
 	end, "lsp")
 end
 
 ---see |:NixRun program|
 ---@param name any
----@param on_done any
-function M.includeProgram(name, on_done, on_err)
-	return add_to_environment(name, InstallableType.FlakeOutputAttribute, Environment.Path, function(_)
-		if on_done then
-			on_done()
+---@param on_done fun(err: string?)?
+function M.includeProgram(name, on_done)
+	on_done = on_done or function(err)
+		if err then
+			vim.notify(string.format("[nixrun] adding %s: %s", name, err), vim.log.levels.ERROR)
+		else
+			vim.notify(string.format("Done adding %s to $PATH", name))
 		end
-		vim.notify(string.format("Done adding %s to $PATH", name))
-	end, function(err)
-		vim.notify(string.format("[nixrun] adding %s: %s", name, err), vim.log.levels.ERROR)
-		if on_err then on_err(err) end
-	end, "programs")
+	end
+	return add_to_environment(name, InstallableType.FlakeOutputAttribute, Environment.Path, on_done, "programs")
 end
 
 ---@return string[]
