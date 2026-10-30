@@ -100,9 +100,13 @@ the file) for API details
 Example:
 
 >lua
-    require('nixrun').add_plugin('nvim-tree-lua', function(paths)
-        -- this will be called when install finishes
-        require('nvim-tree').setup{}
+    require('nixrun').add_plugin('nvim-tree-lua', function(err, paths)
+        if err then
+            vim.notify(err, vim.log.levels.ERROR)
+        else
+            -- this will be called when install succeeds
+            require('nvim-tree').setup{}
+        end
     end)
 <
 
