@@ -8,6 +8,10 @@ local M = {
 	},
 }
 
+local async = require("nixrun.async")
+local await = async.await
+local pawait = async.pawait
+
 ---@alias NixRun.Category
 --- | "plugins"
 --- | "programs"
@@ -25,6 +29,17 @@ local function default(val, def)
 		return val
 	end
 	return def
+end
+
+local function truncate_line(lines, chars)
+	chars = chars or 60
+	local line = string.sub(lines, 1, chars)
+	local short = string.match(line, "(.-)\n")
+	if #short < #lines then
+		return short .. "..."
+	else
+		return short
+	end
 end
 
 ---@type nil|string[]
@@ -132,8 +147,6 @@ end
 ---@param category NixRun.Category
 ---@return vim.SystemObj
 local function add_to_environment(installable, kind, env, on_done, category)
-	local logs = {}
-
 	local nix_cmd
 	---@type fun(paths: string[])
 	local process_paths
@@ -202,8 +215,7 @@ local function add_to_environment(installable, kind, env, on_done, category)
 		vim.schedule_wrap(function(status)
 			M._jobs[category][installable] = nil
 			if status.code ~= 0 then
-				vim.notify(status.stderr, vim.log.levels.ERROR)
-				on_done("bad exit code: " .. status.code .. "\n\n" .. table.concat(logs, "\n"))
+				on_done("nix build failed, bad exit code: " .. status.code .. ", stderr:\n" .. status.stderr)
 				return
 			else
 				process_paths(vim.split(status.stdout, "\n"))
@@ -244,7 +256,7 @@ function M.includeGrammar(name, on_done)
 				on_done(err)
 				return
 			end
-			done(p)
+			done(nil, p)
 		end, "grammars")
 	elseif name:match(":") then
 		done("Installing treesitter parsers with flakeref url style e.g. 'github:user/repo' is not supported yet.")
@@ -292,9 +304,58 @@ function M.includePlugin(name, on_done)
 	end
 end
 
+---@param program string
+---@param on_done fun(err: string?, package: string?)
+local nix_locate_program = async.wrap(function(program, on_done)
+	local cmd = {
+		"nix-locate", "--minimal", "--no-group", "--type", "x", "--type", "s",
+		"bin/" .. program,
+	}
+	---@type boolean, vim.SystemCompleted
+	local ok, out = pawait(function(cb)
+		vim.system(cmd, { text = true }, cb)
+	end)
+
+	if not ok then
+		on_done("nix-locate: " .. out)
+		return
+	elseif out.code ~= 0 then
+		on_done("nix-locate: failed, stderr: " .. truncate_line(out.stderr))
+		return
+	end
+
+	local choices = {}
+	for _, line in ipairs(vim.split(out.stdout, "\n")) do
+		if line ~= "" then
+			table.insert(choices, line)
+		end
+	end
+	if #choices == 0 then
+		on_done("nix-locate: no matches for /bin/" .. program)
+		return
+	elseif #choices == 1 then
+		on_done(nil, choices[1])
+		return
+	else
+		local prompt = "Which package to use as the provider of '" .. program .. "'?"
+		---@type string?
+		local chosen = await(function(cb)
+			-- probably should wrap nix_locate_program instead
+			vim.schedule_wrap(vim.ui.select)(choices, { prompt = prompt }, cb)
+		end)
+
+		if chosen == nil then
+			on_done("user cancelled")
+			return
+		end
+		on_done(nil, chosen)
+		return
+	end
+end)
+
 ---@param name string
 ---@param on_done fun(err: string?)?
-function M.setupLsp(name, on_done)
+M.setupLsp = async.wrap(function(name, on_done)
 	on_done = on_done or function(err)
 		if err then
 			vim.notify(err, vim.log.levels.ERROR)
@@ -302,55 +363,74 @@ function M.setupLsp(name, on_done)
 			vim.notify(string.format("Done LSP setup: %s", name))
 		end
 	end
-	local ok, value = pcall(require, "nixrun.overrides." .. name)
-	if not ok then
-		ok, value = pcall(require, "nixrun.lsp." .. name)
-		if not ok then
-			local err = "Config for LSP '" .. name .. "' not found. Please check if it's supported"
-			on_done(err)
-			return
-		end
+
+	local entry = vim.lsp.config[name]
+	if entry == nil then
+		local err = "no vim.lsp.config found for " .. name .. ", did you forget to install lspconfig?"
+		on_done(err)
+		return
+	end
+	local default_cmd = entry.cmd
+	if default_cmd == nil then
+		local err = "something went wrong: nil cmd in vim.lsp.config of " .. name .. ", please report this bug"
+		on_done(err)
+		return
 	end
 
-	local pkg = "nixpkgs#" .. value.package
-	return add_to_environment(pkg, InstallableType.FlakeOutputAttribute, Environment.None, function(err, plugin_paths)
+	local found, value = pcall(require, "nixrun.overrides." .. name)
+	local tried_sources = { "require('nixrun.overrides." .. name .. "')" }
+
+	if not found then
+		found, value = pcall(require, "nixrun.lsp." .. name)
+		table.insert(tried_sources, "require('nixrun.lsp." .. name .. "')")
+	end
+
+	local pkg
+	if found then
+		pkg = "nixpkgs#" .. value.package
+	else
+		local err, pkg_name = await(function(cb)
+			nix_locate_program(default_cmd[1], cb)
+		end)
+		table.insert(tried_sources, "nix-locate")
+
 		if err then
+			err = err .. "\nTried sources:\n- " .. table.concat(tried_sources, "\n- ")
 			on_done(err)
 			return
 		end
 
-		assert(#plugin_paths == 1)
-		local pkg_path = plugin_paths[1]
+		pkg = "nixpkgs#" .. pkg_name
+	end
 
-		local entry = vim.lsp.config[name]
-		if entry == nil then
-			err = "no vim.lsp.config found for " .. name .. ", did you forget to install lspconfig?"
-			on_done(err)
-			return
-		end
-		local default_cmd = entry.cmd
-		if default_cmd == nil then
-			err = "something went wrong: nil cmd in vim.lsp.config of " .. name .. ", please report this bug"
-			on_done(err)
-			return
-		end
-		local cmd
-		if type(default_cmd) == "table" then
-			cmd = {
-				vim.fs.joinpath(pkg_path, "bin", default_cmd[1]),
-				unpack(default_cmd, 2),
-			}
-		else
-			err = string.format("cmd of type %s not supported", type(default_cmd))
-			on_done(err)
-			return
-		end
-		vim.lsp.config(name, { cmd = cmd })
-		vim.lsp.enable(name)
+	local err, plugin_paths = await(function(cb)
+		add_to_environment(pkg, InstallableType.FlakeOutputAttribute, Environment.None, cb, "lsp")
+	end)
 
-		on_done()
-	end, "lsp")
-end
+	if err then
+		on_done(err)
+		return
+	end
+
+	assert(#plugin_paths == 1)
+	local pkg_path = plugin_paths[1]
+
+	local cmd
+	if type(default_cmd) == "table" then
+		cmd = {
+			vim.fs.joinpath(pkg_path, "bin", default_cmd[1]),
+			unpack(default_cmd, 2),
+		}
+	else
+		err = string.format("cmd of type %s not supported", type(default_cmd))
+		on_done(err)
+		return
+	end
+	vim.lsp.config(name, { cmd = cmd })
+	vim.lsp.enable(name)
+
+	on_done()
+end)
 
 ---see |:NixRun program|
 ---@param name any

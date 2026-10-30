@@ -17,20 +17,19 @@ function M.add_plugin(installable, on_done)
 end
 
 ---@param installable string
----@param on_done fun(err: string?, paths: string[]?)? Function to run when done.
---- `paths` is the full path(s) to the installed packages
+---@param on_done fun(err: string?, paths: string[]?)?
 function M.add_grammar(installable, on_done)
 	require("nixrun.lazy").includeGrammar(installable, on_done)
 end
 
 ---@param name string
----@param on_done fun(err: string)?
+---@param on_done fun(err: string?)?
 function M.add_lsp(name, on_done)
 	require("nixrun.lazy").setupLsp(name, on_done)
 end
 
 ---@param name string see |:NixRun-program|
----@param on_done fun(err: string)?
+---@param on_done fun(err: string?)?
 function M.add_program(name, on_done)
 	require("nixrun.lazy").includeProgram(name, on_done)
 end
