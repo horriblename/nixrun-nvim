@@ -11,25 +11,42 @@ end
 
 ---@param installable string
 ---@param on_done fun(paths: string[])? Function to run on success. `paths` is the full path(s) to the installed packages
-function M.add_plugin(installable, on_done)
-	require("nixrun.lazy").includePlugin(installable, on_done)
+---@param on_err fun(err: string)?
+function M.add_plugin(installable, on_done, on_err)
+	require("nixrun.lazy").includePlugin(installable, on_done, on_err)
 end
 
 ---@param installable string
 ---@param on_done fun(paths: string[])? Function to run on success. `paths` is the full path(s) to the installed packages
-function M.add_grammar(installable, on_done)
-	require("nixrun.lazy").includeGrammar(installable, on_done)
+---@param on_err fun(err: string)?
+function M.add_grammar(installable, on_done, on_err)
+	require("nixrun.lazy").includeGrammar(installable, on_done, on_err)
 end
 
 ---@param name string
 ---@param on_done fun()? Function to run on success.
-function M.add_lsp(name, on_done)
-	require("nixrun.lazy").setupLsp(name, on_done)
+---@param on_err fun(err: string)?
+function M.add_lsp(name, on_done, on_err)
+	require("nixrun.lazy").setupLsp(name, on_done, on_err)
 end
 
 ---@param name string see |:NixRun-program|
-function M.add_program(name, on_done)
-	require("nixrun.lazy").includeProgram(name, on_done)
+---@param on_done fun()?
+---@param on_err fun(err: string)?
+function M.add_program(name, on_done, on_err)
+	require("nixrun.lazy").includeProgram(name, on_done, on_err)
+end
+
+function M.jobs()
+	return require("nixrun.lazy").get_jobs()
+end
+
+function M.jobs_status()
+	return require("nixrun.lazy").jobs_status()
+end
+
+function M.print_jobs()
+	return require("nixrun.lazy").print_jobs()
 end
 
 return M
