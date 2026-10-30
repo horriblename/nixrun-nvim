@@ -1,4 +1,14 @@
-local M = {}
+local M = {
+	_jobs = {
+		---@type system
+		plugins = {},
+		programs = {},
+		lsp = {},
+		grammars = {},
+	},
+}
+
+---@alias NixRun.Job vim.SystemObj
 
 if not _G.nixrun_config then
 	_G.nixrun_config = {}
@@ -117,21 +127,24 @@ end
 ---@param env Environment
 ---@param on_ok fun(paths: string[]) The first entry in paths is the target plugin, rest are dependencies
 ---@param on_fail fun(error: string)
+---@return vim.SystemObj
 local function add_to_environment(installable, kind, env, on_ok, on_fail)
 	local logs = {}
 
-	local nix_cmd, on_stdout
+	local nix_cmd
+	---@type fun(paths: string[])
+	local on_stdout
 	if kind == InstallableType.FlakeOutputAttribute then
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I",
 			string.format("nixpkgs=%s", default(cfg.nixpkgs, "nixpkgs")), installable }
 
-		on_stdout = function(_, lines, _)
-			add_paths_to_environment(lines, env, on_ok, on_fail)
+		on_stdout = function(paths)
+			add_paths_to_environment(paths, env, on_ok, on_fail)
 		end
 	elseif kind == InstallableType.FlakeRefUrl then
 		nix_cmd = { "nix", "flake", "prefetch", "--json", installable }
-		on_stdout = function(_, data, _)
-			local fetch_result_json = data[1]
+		on_stdout = function(paths)
+			local fetch_result_json = paths[1]
 			if fetch_result_json == '' then
 				on_fail("`nix flake prefetch` returned empty stdout")
 				return
@@ -156,7 +169,7 @@ local function add_to_environment(installable, kind, env, on_ok, on_fail)
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I",
 			string.format("nixpkgs=%s", default(cfg.nixpkgs, "nixpkgs")), "--expr", installable }
 
-		on_stdout = function(_, lines, _)
+		on_stdout = function(lines)
 			add_paths_to_environment(lines, env, on_ok, on_fail)
 		end
 	elseif kind == InstallableType.NixpkgsPlugin then
@@ -173,28 +186,24 @@ local function add_to_environment(installable, kind, env, on_ok, on_fail)
 			"--expr", expr,
 		}
 
-		on_stdout = function(_, lines, _)
+		on_stdout = function(lines)
 			add_paths_to_environment(lines, env, on_ok, on_fail)
 		end
 	else
 		error("install_plugin: unrecognized InstallableType " .. kind)
 	end
 
-	vim.fn.jobstart(
+	return vim.system(
 		nix_cmd,
-		{
-			on_exit = function(_, exitcode, _)
-				if exitcode ~= 0 then
-					on_fail("bad exit code: " .. exitcode .. "\n\n" .. table.concat(logs, "\n"))
-				end
-			end,
-			on_stdout = on_stdout,
-			on_stderr = function(_, data, _)
-				logs = data
-			end,
-			stdout_buffered = true,
-			stderr_buffered = true,
-		}
+		{ text = true, },
+		vim.schedule_wrap(function(status)
+			if status.code ~= 0 then
+				vim.notify(status.stderr, vim.log.levels.ERROR)
+				on_fail("bad exit code: " .. status.code .. "\n\n" .. table.concat(logs, "\n"))
+			else
+				on_stdout(vim.split(status.stdout, "\n"))
+			end
+		end)
 	)
 end
 
