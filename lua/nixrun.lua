@@ -46,4 +46,24 @@ function M.print_jobs()
 	return require("nixrun.lazy").print_jobs()
 end
 
+function M.cancel(...)
+	return require("nixrun.lazy").cancel(...)
+end
+
+function M.cancel_all()
+	return require("nixrun.lazy").cancel_all()
+end
+
+function M.status()
+	return require("nixrun.lazy").status()
+end
+
+function M.job_status()
+	return require("nixrun.lazy").job_status()
+end
+
+function M.print_status()
+	return require("nixrun.lazy").print_status()
+end
+
 return M

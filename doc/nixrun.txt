@@ -12,7 +12,9 @@ parsers. There is a Lua API as well |nixrun-lua-api|.
 ================================================================================
 Commands                                                             *:NixRun*
 
-See |:NixRun-plugin|, |:NixRun-grammar|, |:NixRun-lsp|, and |:NixRun-program|
+See |:NixRun-plugin|, |:NixRun-grammar|, |:NixRun-lsp|, and |:NixRun-program|.
+
+To view/cancel running jobs, see |:NixRun-status| and |:NixRun-cancel|.
 
                                           *nixrun-treesitter* *:NixRun-grammar*
 
@@ -85,6 +87,18 @@ Syntax: `NixRun program <installable>`
 
 Adds a program to $PATH. Same syntax for installables as nix3 commands 
 (`nix shell` etc.).
+
+                                              *nixrun-status* *:NixRun-status*
+
+Syntax: `NixRun status`
+
+Prints currently running `nix build` jobs.
+
+                                              *nixrun-cancel* *:NixRun-cancel*
+
+Syntax: `NixRun cancel <installable>`
+
+Cancel a `nix build` job. Use |:NixRun-status| to see running jobs.
 
 ================================================================================
 Lua API                                 *nixrun-lua-api* *nixrun.add_plugin()*

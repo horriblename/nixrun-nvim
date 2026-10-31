@@ -26,7 +26,7 @@ endfu
 fu! nixrun#cmd#cmdCompletion(argLead, cmdline, cursorPos)
 	let argsBefore = split(a:cmdline[:a:cursorPos])
 	if len(argsBefore) <= 1 || (len(argsBefore) == 2 && a:cmdline[a:cursorPos-1] !=# ' ')
-		return "plugin\ngrammar\nlsp\nprogram"
+		return "plugin\ngrammar\nlsp\nprogram\ncancel\nstatus"
 	endif
 
 	if argsBefore[1] == 'plugin'
@@ -35,5 +35,9 @@ fu! nixrun#cmd#cmdCompletion(argLead, cmdline, cursorPos)
 		return nixrun#cmd#grammarCompletion(a:argLead, a:cmdline, a:cursorPos)
 	elseif argsBefore[1] == 'lsp'
 		return nixrun#cmd#lspCompletion(a:argLead, a:cmdline, a:cursorPos)
+	elseif argsBefore[1] == 'cancel'
+		return join(v:lua.require'nixrun.lazy'.list_jobs(), "\n")
+	elseif argsBefore[1] == 'status'
+		return "plugins\ngrammars\nlsp\nprograms\nall"
 	endif
 endfu

@@ -13,7 +13,7 @@ M.config = setmetatable({}, {
 })
 
 M.update = function(new)
-	for k, v in pairs(new) do
+	for k, v in pairs(new or {}) do
 		M.config[k] = v
 	end
 end

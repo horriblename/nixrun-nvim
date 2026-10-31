@@ -1,11 +1,12 @@
 local M = {
-	---@type table<NixRun.Category, table<string,vim.SystemObj[]>>
+	---@type table<NixRun.Category, table<string,vim.SystemObj>>
 	_jobs = {
 		plugins = {},
 		programs = {},
 		lsp = {},
 		grammars = {},
 	},
+	_cancelled_jobs = setmetatable({}, { __mode = "k" }),
 }
 
 local async = require("nixrun.async")
@@ -198,11 +199,22 @@ local function add_to_environment(installable, kind, env, on_done, category)
 		error("install_plugin: unrecognized InstallableType " .. kind)
 	end
 
-	local job = vim.system(
+	local job
+	job = vim.system(
 		nix_cmd,
 		{ text = true, },
 		vim.schedule_wrap(function(status)
-			M._jobs[category][installable] = nil
+			local cancelled = M._cancelled_jobs and M._cancelled_jobs[job]
+			if M._cancelled_jobs then
+				M._cancelled_jobs[job] = nil
+			end
+			if M._jobs[category] then
+				M._jobs[category][installable] = nil
+			end
+			if cancelled then
+				on_done("cancelled")
+				return
+			end
 			if status.code ~= 0 then
 				on_done("nix build failed, bad exit code: " .. status.code .. ", stderr:\n" .. status.stderr)
 				return
@@ -504,33 +516,31 @@ end
 function M.jobs_status()
 	local lines = {}
 	local function add_section(name, jobs)
-		if not jobs or #jobs == 0 then
+		if not jobs or next(jobs) == nil then
 			return
 		end
 		table.insert(lines, name .. ":")
-		for i, job in ipairs(jobs) do
+		for key, job in pairs(jobs) do
 			local status = "running"
 			if type(job) == "table" and job.is_closing then
-				local ok = pcall(function()
-					if job.result then
-						local r = job:result()
-						if r and r.code ~= nil then
-							if r.code == 0 then
-								status = "done"
-							else
-								status = "failed"
-							end
-						end
-					end
+				local ok, r = pcall(function()
+					return job:wait(0)
 				end)
-				if not ok then
+				if ok and r ~= nil then
+					if r.signal and r.signal ~= 0 then
+						status = "cancelled"
+					elseif r.code == 0 then
+						status = "done"
+					else
+						status = "failed"
+					end
+				elseif not ok then
 					status = "unknown"
 				end
 			elseif type(job) == "number" then
-				-- vim.fn.job id - not used now, but just in case
 				status = "unknown"
 			end
-			table.insert(lines, string.format("  %d: %s", i, status))
+			table.insert(lines, string.format("  %s: %s", key, status))
 		end
 		table.insert(lines, "")
 	end
@@ -547,6 +557,160 @@ function M.jobs_status()
 end
 
 function M.print_jobs()
+	print(M.jobs_status())
+end
+
+---Cancel a running job.
+---
+---Accepted forms:
+---  M.cancel()                       cancel every running job
+---  M.cancel(job)                    cancel a vim.SystemObj
+---  M.cancel(name)                   cancel job(s) with this installable name
+---  M.cancel(category)              cancel every job in a category
+---  M.cancel(category, name)         cancel a specific job
+---  M.cancel("all")                 cancel every running job
+---@param ... any
+---@return integer|boolean number of jobs cancelled, or success for single job
+function M.cancel(...)
+	local args = { ... }
+
+	-- cancel everything
+	if #args == 0 then
+		local n = 0
+		for category, jobs in pairs(M._jobs) do
+			local names = {}
+			for name, _ in pairs(jobs) do
+				table.insert(names, name)
+			end
+			for _, name in ipairs(names) do
+				if M.cancel_job(category, name) then
+					n = n + 1
+				end
+			end
+		end
+		return n
+	end
+
+	if #args == 1 then
+		local a = args[1]
+
+		if type(a) == "table" and type(a.kill) == "function" then
+			M._cancelled_jobs[a] = true
+			for _, jobs in pairs(M._jobs) do
+				for name, job in pairs(jobs) do
+					if job == a then
+						jobs[name] = nil
+					end
+				end
+			end
+			pcall(function()
+				a:kill()
+			end)
+			return true
+		end
+
+		if type(a) == "string" then
+			if a == "all" or a == "*" then
+				return M.cancel()
+			end
+
+			-- category
+			if M._jobs[a] ~= nil then
+				local n = 0
+				local names = {}
+				for name, _ in pairs(M._jobs[a]) do
+					table.insert(names, name)
+				end
+				for _, name in ipairs(names) do
+					if M.cancel_job(a, name) then
+						n = n + 1
+					end
+				end
+				return n
+			end
+
+			-- name across categories
+			local found = false
+			for category, jobs in pairs(M._jobs) do
+				if jobs[a] ~= nil then
+					if M.cancel_job(category, a) then
+						found = true
+					end
+				end
+			end
+			return found
+		end
+
+		return false
+	end
+
+	-- category, name
+	local category = args[1]
+	local name = args[2]
+	if type(category) == "string" and type(name) == "string" then
+		return M.cancel_job(category, name)
+	end
+
+	-- maybe name as second with job object first? handle job object
+	if type(category) == "table" and type(category.kill) == "function" then
+		return M.cancel(category)
+	end
+
+	return false
+end
+
+---Cancel a specific job by category and installable name.
+---@param category string
+---@param name string
+---@return boolean
+function M.cancel_job(category, name)
+	if type(category) ~= "string" or type(name) ~= "string" then
+		-- allow flexible usage
+		return M.cancel(category, name) and true or false
+	end
+	local jobs = M._jobs[category]
+	if not jobs then
+		return false
+	end
+	local job = jobs[name]
+	if not job then
+		return false
+	end
+	M._cancelled_jobs[job] = true
+	jobs[name] = nil
+	pcall(function()
+		job:kill('sigterm')
+	end)
+	return true
+end
+
+function M.cancel_all()
+	return M.cancel()
+end
+
+function M.list_jobs()
+	local out = {}
+	for category, jobs in pairs(M._jobs) do
+		for name, _ in pairs(jobs) do
+			table.insert(out, name)
+			table.insert(out, category .. " " .. name)
+		end
+	end
+	return out
+end
+
+---Alias helpers for status viewing
+function M.status()
+	local s = M.jobs_status()
+	print(s)
+	return s
+end
+
+function M.job_status()
+	return M.jobs_status()
+end
+
+function M.print_status()
 	print(M.jobs_status())
 end
 
