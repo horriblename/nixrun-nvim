@@ -1,42 +1,38 @@
 *nixrun.txt* (ab)use the power of imperative nix in neovim
 
+================================================================================
 Introduction                                             *nixrun-introduction*
 
-Nixrun provides a convenient way to install plugins temporarily, like the `nix
-run` command.
+NixRun provides a convenient way to install plugins temporarily, like the 
+`nix run` command.
 
-After running |nixrun.setup()|, the commands |NixRunTSGrammar| and
-|NixRunPlugin| are provided to install plugins and treesitter parsers.
+The commands |NixRun| is used to install plugins, LSPs, and treesitter
+parsers. There is a Lua API as well |nixrun-lua-api|.
 
-nixrun.setup({opts})                                          *nixrun.setup()*
+================================================================================
+Commands                                                             *:NixRun*
 
-Configures the options to be used by the plugin.
->lua
-    require("nixrun").setup({
-        -- registry/url of nixpkgs, e.g. "flake:nixpkgs",
-        -- "/home/user/nixpkgs", "channel:nixos-21.05"
-        nixpkgs = "flake:nixpkgs",
-    })
-<
+See |:NixRun-plugin|, |:NixRun-grammar|, |:NixRun-lsp|, and |:NixRun-program|.
 
-                                         *nixrun-treesitter* *NixRunTSGrammar*
+To view/cancel running jobs, see |:NixRun-status| and |:NixRun-cancel|.
 
-Syntax: `NixRunTSGrammar <grammarName or flakeref#attrpath>`
+                                          *nixrun-treesitter* *:NixRun-grammar*
+
+Syntax: `NixRun grammar <grammarName or flakeref#attrpath>`
 
 - `grammarName` can be any of those listed in
   `nixpkgs#vimPlugins.nvim-treesitter.builtGrammars`.
 - see |flake-output-attribute| for explaination on `flakeref#attrpath`
 
 Temporarily install a treesitter grammar for this session. After the grammar
-is successfully installed, the buffer must be reloaded using |:edit| for
-treesitter highlighting to take effect.
+is successfully installed, you might need to reload your buffers with |:edit|.
 >vim
-    NixRunTSGrammar clojure
+    NixRun grammar clojure
 <
 
-                                                *nixrun-plugin* *NixRunPlugin*
+                                              *nixrun-plugin* *:NixRun-plugin*
 
-Syntax: `NixRunPlugin <pluginName or flakeref#attrpath or flakerefUrl>`
+Syntax: `NixRun plugin <pluginName or flakeref#attrpath or flakerefUrl>`
 
 - `pluginName` can be any of those listed in `nixpkgs#vimPlugins`. Entries of
   this type will also install its dependencies.
@@ -51,15 +47,15 @@ Example:
 
 >vim
     " adds nixpkgs#vimPlugins.oil-nvim + dependencies to runtimepath
-    NixRunPlugin oil-nvim
+    NixRun plugin oil-nvim
 
     " adds my-personal-flake#my-custom-plugin to runtimepath (dependency not 
     " included currently :c )
-    NixRunPlugin my-personal-flake#my-custom-plugin
+    NixRun plugin my-personal-flake#my-custom-plugin
 
     " pulls the repo github:t-troebst/perfanno.nvim and add it to runtimepath,
     " no dependency resolution
-    NixRunPlugin github:t-troebst/perfanno.nvim
+    NixRun plugin github:t-troebst/perfanno.nvim
 <
 
 Install procedure: After the plugin is successfully installed, mimicking
@@ -72,7 +68,96 @@ Install procedure: After the plugin is successfully installed, mimicking
     /nix/store/plugin-dir/ftdetect/*.vim
 <
 
-                                           *flakeref* *flake-output-attribute*
+                                                    *nixrun-lsp* *:NixRun-lsp*
+
+Syntax: `NixRun lsp <lsp>`
+
+Currently only a small amount of LSPs are supported out-of-the-box, and most
+of them are generated through a script, so your mileage may vary. See
+|nixrun-setup| for using custom packages. `<lsp>` should be the name of the
+lsp as given by lspconfig, or the name you set via vim.lsp.config(), NOT the
+name of the language itself.
+
+Example
+
+>vim
+    NixRun lsp vala_ls
+<
+                                            *nixrun-program* *:NixRun-program*
+
+Syntax: `NixRun program <installable>`
+
+Adds a program to $PATH. Same syntax for installables as nix3 commands 
+(`nix shell` etc.).
+
+                                              *nixrun-status* *:NixRun-status*
+
+Syntax: `NixRun status`
+
+Prints currently running `nix build` jobs.
+
+                                              *nixrun-cancel* *:NixRun-cancel*
+
+Syntax: `NixRun cancel <installable>`
+
+Cancel a `nix build` job. Use |:NixRun-status| to see running jobs.
+
+
+================================================================================
+Setup and configuration                                    *nixrun-setup*
+
+*nixrun.setup()*
+
+`require('nixrun').setup({ ... })` configures NixRun. All options are optional.
+
+Options:
+
+- `nixpkgs` (string): registry or path of nixpkgs used for building, e.g.
+  "nixpkgs", "/home/user/nixpkgs", or "channel:nixos-21.05". Defaults to
+  "nixpkgs".
+
+- `lsp_overrides` (table): map an LSP name (as used by |NixRun-lsp|) to a
+  nixpkgs package attribute (or any |flake-output-attribute|) used to install
+  that LSP. This can override the built-in overrides or define packages for
+  LSPs that are not known to NixRun.
+
+Example:
+
+>lua
+    require('nixrun').setup({
+        lsp_overrides = {
+            lua_ls = "lua-language-server.out",
+            my_custom_ls = "github:user/repo#my-custom-ls",
+        },
+    })
+<
+
+================================================================================
+Lua API                                 *nixrun-lua-api* *nixrun.add_plugin()*
+                                     *nixrun.add_lsp()* *nixrun.add_grammar()*
+                                                        *nixrun.add_program()*
+
+A lua API is also exposed that does the same thing as |:NixRun| plus run some
+lua code when install completes.
+
+See the lua file `../lua/nixrun.lua` (press `gf` on the file name to jump to
+the file) for API details
+
+Example:
+
+>lua
+    require('nixrun').add_plugin('nvim-tree-lua', function(err, paths)
+        if err then
+            vim.notify(err, vim.log.levels.ERROR)
+        else
+            -- this will be called when install succeeds
+            require('nvim-tree').setup{}
+        end
+    end)
+<
+
+================================================================================
+Nix concepts                               *flakeref* *flake-output-attribute*
 
 A Flake output attribute is a string in the form of `flakeref#attrpath`, e.g.
 `nixpkgs#vimPlugins.nvim-treesitter`. For more details, see the "Flake output

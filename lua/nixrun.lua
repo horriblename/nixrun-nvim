@@ -1,67 +1,72 @@
 local M = {}
 
----@alias nixpkgsPath string
-
----@class NixrunConfig
----@field nixpkgs string registry/url of nixpkgs, e.g. "flake:nixpkgs", "/home/user/nixpkgs", "channel:nixos-21.05"
-
----@param options table
----@return NixrunConfig
-local function with_defaults(options)
-	-- TODO: warn unknown flags
-	return {
-		nixpkgs = options.nixpkgs or "flake:nixpkgs",
-	}
+M.get_default_config = function()
+	return require("nixrun.config").default_config
 end
 
----@type NixrunConfig
-M.options = with_defaults({})
-
----@param argLead string
----@return string[]
-local function grammarCompletion(argLead, _, _)
-	local grammars = require("nixrun.lazy").listAvailableGrammars()
-	if argLead == '' then
-		return grammars
-	end
-	return vim.fn.matchfuzzy(grammars, argLead)
-end
-
----@param argLead string
----@return string[]
-local function pluginCompletion(argLead, _, _)
-	local grammars = require("nixrun.lazy").listAvailablePlugins()
-	if argLead == '' then
-		return grammars
-	end
-	return vim.fn.matchfuzzy(grammars, argLead)
-end
-
----@param options NixrunConfig
+---@param options NixRun.Config
 function M.setup(options)
-	M.options = with_defaults(options or {})
+	vim.validate("nixrun.setup()", options, "table", true)
+	if options then
+		require("nixrun.config").update(options)
+	end
+end
 
-	vim.api.nvim_create_user_command(
-		"NixRunTSGrammar",
-		function(cmd_args)
-			require("nixrun.lazy").includeGrammar(cmd_args.args)
-		end,
-		{
-			complete = grammarCompletion,
-			nargs = 1,
-		}
-	)
+---@param installable string
+---@param on_done fun(err: string?, paths: string[]?)? Function to run when done.
+--- `paths` is the full path(s) to the installed packages
+function M.add_plugin(installable, on_done)
+	require("nixrun.lazy").includePlugin(installable, on_done)
+end
 
-	vim.api.nvim_create_user_command(
-		"NixRunPlugin",
-		function(cmd_args)
-			require("nixrun.lazy").includePlugin(cmd_args.args)
-		end,
-		{
-			complete = pluginCompletion,
-			nargs = 1,
-		}
-	)
+---@param installable string
+---@param on_done fun(err: string?, paths: string[]?)?
+function M.add_grammar(installable, on_done)
+	require("nixrun.lazy").includeGrammar(installable, on_done)
+end
+
+---@param name string
+---@param on_done fun(err: string?)?
+function M.add_lsp(name, on_done)
+	require("nixrun.lazy").setupLsp(name, on_done)
+end
+
+---@param name string see |:NixRun-program|
+---@param on_done fun(err: string?)?
+function M.add_program(name, on_done)
+	require("nixrun.lazy").includeProgram(name, on_done)
+end
+
+function M.jobs()
+	return require("nixrun.lazy").get_jobs()
+end
+
+function M.jobs_status()
+	return require("nixrun.lazy").jobs_status()
+end
+
+function M.print_jobs()
+	return require("nixrun.lazy").print_jobs()
+end
+
+function M.cancel(...)
+	return require("nixrun.lazy").cancel(...)
+end
+
+function M.cancel_all()
+	return require("nixrun.lazy").cancel_all()
+end
+
+function M.status()
+	return require("nixrun.lazy").status()
+end
+
+function M.job_status()
+	return require("nixrun.lazy").job_status()
+end
+
+function M.print_status()
+	return require("nixrun.lazy").print_status()
 end
 
 return M
