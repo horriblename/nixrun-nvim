@@ -197,11 +197,8 @@ do_test("non-existent program fails", function(assert, fin)
 	end)
 end)
 
-exclusive_test("cancel job", function(assert, fin)
-	require("nixrun").setup({ nix_build_flags = { "--impure" } })
-	vim.fn.setenv("NIXRUN_NVIM_TEST_SALT", tostring(math.random()))
-
-	local installable = "./tests#wait5min"
+do_test("cancel job", function(assert, fin)
+	local installable = "./tests#wait-5-min-and-fail"
 
 	local job = nixrun.add_program(installable, function(err)
 		assert(err == "cancelled", "expected cancelled, got: " .. tostring(err))
@@ -209,7 +206,6 @@ exclusive_test("cancel job", function(assert, fin)
 	end)
 
 	assert(job ~= nil, "add_program should return a job")
-	require("nixrun").setup({ nix_build_flags = {} })
 
 	nixrun.cancel(job)
 end)

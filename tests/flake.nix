@@ -13,7 +13,7 @@
     packages = eachSystem (system: let
       pkgs = nixpkgs.legacyPackages.${system};
     in {
-      wait5min = pkgs.callPackage ./wait5min.nix {};
+      wait-5-min-and-fail = pkgs.callPackage ./wait-5-min-and-fail.nix {};
     });
   };
 }
