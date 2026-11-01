@@ -4,9 +4,10 @@ M.check = function()
 	vim.health.start("Checking user config")
 
 	-- NOTE: does not check default fields
-	local cfg = require("nixrun.config").config
+	local cfg = require("nixrun.config")._config
 	local schema = {
-		nixpkgs = { cfg.nixpkgs, "string" }
+		nixpkgs = "string",
+		lsp_overrides = "table",
 	}
 
 

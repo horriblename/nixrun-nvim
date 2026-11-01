@@ -9,9 +9,18 @@ _temporarily_.
 
 # Setup
 
-Just install the plugin and you can use it directly without setup. Currently
-there are no configurable options. (I mentioned `_G.nixrun_config` some time in
-the past but it was never implemented so idk why I wrote that sorry teehee).
+Install the plugin and use it directly. Configuration is optional:
+
+```lua
+require('nixrun').setup({
+    nixpkgs = "nixpkgs",
+    lsp_overrides = {
+        lua_ls = "lua-language-server.out",
+    },
+})
+```
+
+See `doc/nixrun.txt` for details.
 
 # Usage
 

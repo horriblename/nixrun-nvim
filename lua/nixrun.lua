@@ -4,9 +4,12 @@ M.get_default_config = function()
 	return require("nixrun.config").default_config
 end
 
----@param options NixrunConfig
+---@param options NixRun.Config
 function M.setup(options)
-	require("nixrun.config").update(options)
+	vim.validate("nixrun.setup()", options, "table", true)
+	if options then
+		require("nixrun.config").update(options)
+	end
 end
 
 ---@param installable string

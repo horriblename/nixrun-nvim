@@ -72,9 +72,11 @@ Install procedure: After the plugin is successfully installed, mimicking
 
 Syntax: `NixRun lsp <lsp>`
 
-Currently only a small amount of LSPs are supported, and most of them are
-generated through a script, so your mileage may vary. `<lsp>` should be the
-name of the lsp as given by lspconfig, NOT the name of the language itself.
+Currently only a small amount of LSPs are supported out-of-the-box, and most
+of them are generated through a script, so your mileage may vary. See
+|nixrun-setup| for using custom packages. `<lsp>` should be the name of the
+lsp as given by lspconfig, or the name you set via vim.lsp.config(), NOT the
+name of the language itself.
 
 Example
 
@@ -99,6 +101,36 @@ Prints currently running `nix build` jobs.
 Syntax: `NixRun cancel <installable>`
 
 Cancel a `nix build` job. Use |:NixRun-status| to see running jobs.
+
+
+================================================================================
+Setup and configuration                                    *nixrun-setup*
+
+*nixrun.setup()*
+
+`require('nixrun').setup({ ... })` configures NixRun. All options are optional.
+
+Options:
+
+- `nixpkgs` (string): registry or path of nixpkgs used for building, e.g.
+  "nixpkgs", "/home/user/nixpkgs", or "channel:nixos-21.05". Defaults to
+  "nixpkgs".
+
+- `lsp_overrides` (table): map an LSP name (as used by |NixRun-lsp|) to a
+  nixpkgs package attribute (or any |flake-output-attribute|) used to install
+  that LSP. This can override the built-in overrides or define packages for
+  LSPs that are not known to NixRun.
+
+Example:
+
+>lua
+    require('nixrun').setup({
+        lsp_overrides = {
+            lua_ls = "lua-language-server.out",
+            my_custom_ls = "github:user/repo#my-custom-ls",
+        },
+    })
+<
 
 ================================================================================
 Lua API                                 *nixrun-lua-api* *nixrun.add_plugin()*

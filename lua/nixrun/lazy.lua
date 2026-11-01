@@ -19,7 +19,7 @@ local pawait = async.pawait
 --- | "lsp"
 --- | "grammars"
 
-local cfg = require("nixrun.config").config
+local cfg = require("nixrun.config")._config
 
 local function truncate_line(lines, chars)
 	chars = chars or 60
@@ -305,8 +305,7 @@ function M.includePlugin(name, on_done)
 	end
 end
 
----@param program string
----@param on_done fun(err: string?, package: string?)
+---@type fun(program: string, on_done: fun(err: string?, package: string?))
 local nix_locate_program = async.wrap(function(program, on_done)
 	local cmd = {
 		"nix-locate", "--minimal", "--no-group", "--type", "x", "--type", "s",
@@ -378,19 +377,33 @@ M.setupLsp = async.wrap(function(name, on_done)
 		return
 	end
 
-	local found, value = pcall(require, "nixrun.overrides." .. name)
-	local tried_sources = { "require('nixrun.overrides." .. name .. "')" }
+	local found, attr_path
+	local tried_sources = {}
+
+	-- configured overrides take precedence
+	attr_path = cfg.lsp_overrides[name]
+	found = attr_path ~= nil
+	table.insert(tried_sources, "setup() lsp_overrides")
 
 	if not found then
-		found, value = pcall(require, "nixrun.lsp." .. name)
-		table.insert(tried_sources, "require('nixrun.lsp." .. name .. "')")
+		local ok, v = pcall(require, "nixrun.overrides." .. name)
+		if ok then
+			found, attr_path = true, v.package
+		end
+		table.insert(tried_sources, "builtin sources (overrides)")
 	end
 
-	local pkg
-	if found then
-		pkg = "nixpkgs#" .. value.package
-	else
-		local err, pkg_name = await(function(cb)
+	if not found then
+		local ok, v = pcall(require, "nixrun.lsp." .. name)
+		if ok then
+			found, attr_path = true, v.package
+		end
+		table.insert(tried_sources, "builtin sources (script generated)")
+	end
+
+	if not found then
+		local err
+		err, attr_path = await(function(cb)
 			nix_locate_program(default_cmd[1], cb)
 		end)
 		table.insert(tried_sources, "nix-locate")
@@ -400,8 +413,27 @@ M.setupLsp = async.wrap(function(name, on_done)
 			on_done(err)
 			return
 		end
+	end
 
-		pkg = "nixpkgs#" .. pkg_name
+	-- builtin sources store their installable in a `package` field
+	if type(attr_path) == "table" then
+		attr_path = attr_path.package
+	end
+
+	if type(attr_path) ~= "string" or attr_path == "" then
+		local err = "could not resolve an installable for LSP '" .. name .. "'"
+		err = err .. "\nTried sources:\n- " .. table.concat(tried_sources, "\n- ")
+		on_done(err)
+		return
+	end
+
+	-- a full flake output attribute (or flakeref) may be given verbatim,
+	-- otherwise treat the value as a nixpkgs package attribute
+	local pkg
+	if attr_path:match("#") or attr_path:match(":") then
+		pkg = attr_path
+	else
+		pkg = "nixpkgs#" .. attr_path
 	end
 
 	local err, plugin_paths = await(function(cb)
