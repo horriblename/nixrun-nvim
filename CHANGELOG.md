@@ -5,7 +5,7 @@ Breaking:
 - Deprecated `NixRunPlugin` and `NixRunTSGrammar`, use `NixRun plugin` or
   `NixRun grammar` instead.
 - Callbacks now use a single `(err, ...)` style.
-- Treesitter grammars are installed from `nvim-treesitter.builtGrammars`.
+- Treesitter grammars are installed from `nvim-treesitter.grammarPlugins`.
 
 Features:
 
