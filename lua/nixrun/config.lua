@@ -3,9 +3,12 @@ local M = {}
 ---@class NixRun.Config
 ---@field nixpkgs string registry/url of nixpkgs, e.g. "flake:nixpkgs", "/home/user/nixpkgs", "channel:nixos-21.05"
 ---@field lsp_overrides table<string, string> maps LSPs to their installable
+---@field nix_build_flags string[] extra flags to pass to `nix build`
 M.default_config = {
 	nixpkgs = "nixpkgs",
 	lsp_overrides = {},
+	-- Extra flags to pass to `nix build`
+	nix_build_flags = {},
 }
 
 ---@type NixRun.Config

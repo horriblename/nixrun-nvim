@@ -121,6 +121,10 @@ Options:
   that LSP. This can override the built-in overrides or define packages for
   LSPs that are not known to NixRun.
 
+- `nix_build_flags` (list of strings): extra flags to pass to `nix build`,
+  e.g. `{ "--print-build-logs" }`. Defaults to `{}`. Not used for 
+  `NixRun plugin github:user/repo` forms as those use `nix flake prefetch`.
+
 Example:
 
 >lua
