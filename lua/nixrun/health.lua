@@ -1,5 +1,18 @@
 local M = {}
 
+local function is_list_of(xs, el_type)
+	if not vim.islist(xs) then
+		return false
+	end
+
+	for _, x in ipairs(xs) do
+		if type(x) ~= el_type then
+			return false
+		end
+	end
+	return true
+end
+
 M.check = function()
 	vim.health.start("Checking user config")
 
@@ -8,6 +21,9 @@ M.check = function()
 	local schema = {
 		nixpkgs = "string",
 		lsp_overrides = "table",
+		nix_build_flags = function(xs)
+			return is_list_of(xs, "string")
+		end,
 	}
 
 

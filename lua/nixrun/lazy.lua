@@ -156,7 +156,9 @@ local function add_to_environment(installable, kind, env, on_done, category)
 	local process_paths
 	if kind == InstallableType.FlakeOutputAttribute then
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I",
-			string.format("nixpkgs=%s", cfg.nixpkgs), installable }
+			string.format("nixpkgs=%s", cfg.nixpkgs) }
+		vim.list_extend(nix_cmd, cfg.nix_build_flags or {})
+		table.insert(nix_cmd, installable)
 
 		process_paths = function(paths)
 			add_paths_to_environment(paths, env, on_done)
@@ -187,7 +189,10 @@ local function add_to_environment(installable, kind, env, on_done, category)
 		end
 	elseif kind == InstallableType.NixExpr then
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure", "-I",
-			string.format("nixpkgs=%s", cfg.nixpkgs), "--expr", installable }
+			string.format("nixpkgs=%s", cfg.nixpkgs) }
+		vim.list_extend(nix_cmd, cfg.nix_build_flags or {})
+		table.insert(nix_cmd, "--expr")
+		table.insert(nix_cmd, installable)
 
 		process_paths = function(lines)
 			add_paths_to_environment(lines, env, on_done)
@@ -203,8 +208,10 @@ local function add_to_environment(installable, kind, env, on_done, category)
 
 		nix_cmd = { "nix", "build", "--print-out-paths", "--no-link", "--impure",
 			"-I", string.format("nixpkgs=%s", cfg.nixpkgs),
-			"--expr", expr,
 		}
+		vim.list_extend(nix_cmd, cfg.nix_build_flags or {})
+		table.insert(nix_cmd, "--expr")
+		table.insert(nix_cmd, expr)
 
 		process_paths = function(lines)
 			add_paths_to_environment(lines, env, on_done)
