@@ -1,3 +1,5 @@
+local TIMEOUT_SEC = 300
+
 local nixrun = require("nixrun")
 
 ---@alias Finish fun(ok: boolean, err: string?)
@@ -8,6 +10,8 @@ local n_fail = 0
 -- Exclusives must be run after all non-exclusive ones cuz I'm lazy
 ---@type table<{name:string, test:fun(assert, finish)}>
 local pending_exclusives = {}
+---@type uv.uv_timer_t?
+local timeout_timer = nil
 
 local do_test
 
@@ -43,6 +47,9 @@ local function make_finish(name)
 		end
 
 		if next(running) == nil then
+			if timeout_timer then
+				timeout_timer:stop()
+			end
 			print("OK:", n_ok, "Fail:", n_fail, "\n")
 			if n_fail > 0 then
 				os.exit(1)
@@ -223,3 +230,8 @@ exclusive_test("select from nix-locate results", function(assert, fin)
 	--- to jobs() just yet (possibly a design flaw)
 	-- assert(require("nixrun").jobs()["lsp"][lsp])
 end)
+
+vim.defer_fn(function()
+	error(("timeout reached (%ds)"):format(TIMEOUT_SEC))
+	os.exit(1)
+end, TIMEOUT_SEC * 1000)
