@@ -32,6 +32,20 @@ local function truncate_line(lines, chars)
 	end
 end
 
+-- normalize shorthand installable into a proper  flake output attribute
+-- accepted by `nix build`
+local function normalize_installable(installable, default_flakeref)
+	if installable:find("#", 1, true)
+		or installable:find(":", 1, true)
+	then
+		-- already a proper output attribute flakeref#path
+		-- or github:owner/repo
+		return installable
+	end
+
+	return default_flakeref .. "#" .. installable
+end
+
 ---@type nil|string[]
 M._installable_parsers = nil
 
@@ -353,8 +367,7 @@ local nix_locate_program = async.wrap(function(program, on_done)
 	end
 end)
 
----@param name string
----@param on_done fun(err: string?)?
+---@type fun(name: string, on_done: fun(err: string?)?)
 M.setupLsp = async.wrap(function(name, on_done)
 	on_done = on_done or function(err)
 		if err then
@@ -415,26 +428,7 @@ M.setupLsp = async.wrap(function(name, on_done)
 		end
 	end
 
-	-- builtin sources store their installable in a `package` field
-	if type(attr_path) == "table" then
-		attr_path = attr_path.package
-	end
-
-	if type(attr_path) ~= "string" or attr_path == "" then
-		local err = "could not resolve an installable for LSP '" .. name .. "'"
-		err = err .. "\nTried sources:\n- " .. table.concat(tried_sources, "\n- ")
-		on_done(err)
-		return
-	end
-
-	-- a full flake output attribute (or flakeref) may be given verbatim,
-	-- otherwise treat the value as a nixpkgs package attribute
-	local pkg
-	if attr_path:match("#") or attr_path:match(":") then
-		pkg = attr_path
-	else
-		pkg = "nixpkgs#" .. attr_path
-	end
+	local pkg = normalize_installable(attr_path, "nixpkgs")
 
 	local err, plugin_paths = await(function(cb)
 		add_to_environment(pkg, InstallableType.FlakeOutputAttribute, Environment.None, cb, "lsp")
@@ -476,7 +470,8 @@ function M.includeProgram(name, on_done)
 			vim.notify(string.format("Done adding %s to $PATH", name))
 		end
 	end
-	return add_to_environment(name, InstallableType.FlakeOutputAttribute, Environment.Path, on_done, "programs")
+	return add_to_environment(normalize_installable(name, "nixpkgs"), InstallableType.FlakeOutputAttribute,
+		Environment.Path, on_done, "programs")
 end
 
 ---@return string[]
