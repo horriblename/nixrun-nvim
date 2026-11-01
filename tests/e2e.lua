@@ -11,6 +11,10 @@ local pending_exclusives = {}
 
 local do_test
 
+local function executable(prog)
+	return vim.fn.executable(prog) == 1
+end
+
 local function make_finish(name)
 	return function(ok, err)
 		if running[name] == nil then
@@ -49,16 +53,18 @@ local function make_finish(name)
 end
 
 local function make_assert(name)
-	return function(pred)
+	return function(pred, msg)
 		if not pred then
 			-- ensure test exits (shut up I know it's bad)
-			make_finish(name)(false, debug.traceback('failed assertion in test "' .. name .. '"'))
-			error("failed assertion")
+			msg = 'failed assertion in test "' .. name .. '"'
+				.. (msg and ": " .. msg or "")
+			make_finish(name)(false, debug.traceback(msg, 2))
+			error("failed assertion ", 2)
 		end
 	end
 end
 ---@param name string
----@param test fun(assert: fun(pred: boolean), fin: Finish)
+---@param test fun(assert: fun(pred: any, msg: string?), fin: Finish)
 function do_test(name, test)
 	running[name] = true
 	local ok, err = pcall(test, make_assert(name), make_finish(name))
@@ -132,6 +138,57 @@ do_test("non-existent plugin fails", function(assert, fin)
 	assert(require("nixrun").jobs()["plugins"][plug])
 end)
 
+do_test("add grammar", function(assert, fin)
+	local grammar = "make"
+	-- make sure we didn't already install the grammar
+	assert(pcall(vim.treesitter.language.inspect, grammar) == false,
+		"Please ensure grammar for " .. grammar .. " is not in test env")
+	nixrun.add_grammar(grammar, function(err)
+		assert(err == nil)
+		assert(pcall(vim.treesitter.language.inspect, grammar) == true)
+		fin(true)
+	end)
+end)
+
+do_test("non-existent grammar fails", function(assert, fin)
+	local grammar = "fake_lang"
+	-- make sure we didn't already install the grammar
+	assert(pcall(vim.treesitter.language.inspect, grammar) == false,
+		"Please ensure grammar for " .. grammar .. " is not in test env")
+	nixrun.add_grammar(grammar, function(err)
+		assert(err)
+		assert(err:find("error: attribute 'fake_lang' missing"))
+		fin(true)
+	end)
+end)
+
+do_test("add program", function(assert, fin)
+	local prog = "hello"
+	assert(not executable(prog),
+		"Please ensure 'hello' does not exist in PATH")
+	-- matches the system string e.g. "x86_64-linux"
+	nixrun.add_program(prog, function(err)
+		assert(err == nil)
+		assert(executable(prog))
+		fin(true)
+	end)
+end)
+
+do_test("non-existent program fails", function(assert, fin)
+	local prog = "fakeprog"
+	-- matches the system string e.g. "x86_64-linux"
+	local system = "[%w%d%-_]+"
+	nixrun.add_program(prog, function(err)
+		assert(err)
+		assert(err:find(
+			"error: flake 'flake:nixpkgs' does not provide attribute 'packages."
+			.. system .. ".fakeprog', 'legacyPackages."
+			.. system .. ".fakeprog' or 'fakeprog'"
+		))
+		fin(true)
+	end)
+end)
+
 exclusive_test("select from nix-locate results", function(assert, fin)
 	-- always chooses "toybox.out"
 	vim.ui.select = function(items, _, on_choice)
@@ -157,7 +214,7 @@ exclusive_test("select from nix-locate results", function(assert, fin)
 			fin(false, err)
 			return
 		end
-		assert(vim.fn.executable(cmd))
+		assert(executable(cmd))
 		fin(true)
 	end)
 
