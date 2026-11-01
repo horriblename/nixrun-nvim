@@ -1,3 +1,4 @@
+-- run tests with `make test-e2e`
 local TIMEOUT_SEC = 300
 
 local nixrun = require("nixrun")
@@ -194,6 +195,23 @@ do_test("non-existent program fails", function(assert, fin)
 		))
 		fin(true)
 	end)
+end)
+
+exclusive_test("cancel job", function(assert, fin)
+	require("nixrun").setup({ nix_build_flags = { "--impure" } })
+	vim.fn.setenv("NIXRUN_NVIM_TEST_SALT", tostring(math.random()))
+
+	local installable = "./tests#wait5min"
+
+	local job = nixrun.add_program(installable, function(err)
+		assert(err == "cancelled", "expected cancelled, got: " .. tostring(err))
+		fin(true)
+	end)
+
+	assert(job ~= nil, "add_program should return a job")
+	require("nixrun").setup({ nix_build_flags = {} })
+
+	nixrun.cancel(job)
 end)
 
 exclusive_test("select from nix-locate results", function(assert, fin)
