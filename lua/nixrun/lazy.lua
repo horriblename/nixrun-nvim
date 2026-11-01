@@ -37,9 +37,10 @@ end
 local function normalize_installable(installable, default_flakeref)
 	if installable:find("#", 1, true)
 		or installable:find(":", 1, true)
+		or installable:find("/", 1, true)
 	then
 		-- already a proper output attribute flakeref#path
-		-- or github:owner/repo
+		-- or github:owner/repo or /path/to/repo
 		return installable
 	end
 
@@ -280,7 +281,7 @@ function M.includeGrammar(name, on_done)
 			end
 			done(nil, p)
 		end, "grammars")
-	elseif name:match(":") then
+	elseif name:match(":") or name:match("/") then
 		done("Installing treesitter parsers with flakeref url style e.g. 'github:user/repo' is not supported yet.")
 		return nil
 	else
@@ -322,7 +323,7 @@ function M.includePlugin(name, on_done)
 	end
 	if name:match("#") then
 		return add_to_environment(name, InstallableType.FlakeOutputAttribute, Environment.PluginRtp, on_done, "plugins")
-	elseif name:match(":") then
+	elseif name:match(":") then -- we don't accept /local/full/path here as you could just :set rtp^=/path
 		return add_to_environment(name, InstallableType.FlakeRefUrl, Environment.PluginRtp, on_done, "plugins")
 	else
 		return add_to_environment(name, InstallableType.NixpkgsPlugin, Environment.PluginRtp, on_done, "plugins")
