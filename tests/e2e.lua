@@ -16,6 +16,21 @@ local timeout_timer = nil
 
 local do_test
 
+---@type table<string,string>
+local color = setmetatable({}, {
+	__index = function() return "" end
+})
+local color_print = print
+if vim.uv.guess_handle(1) == "tty" and #vim.api.nvim_list_uis() == 0 then
+	color = {
+		red = "\x1b[31m",
+		green = "\x1b[32m",
+		reset = "\x1b[0m",
+	}
+	color_print = io.write
+end
+
+
 local function executable(prog)
 	return vim.fn.executable(prog) == 1
 end
@@ -29,13 +44,13 @@ local function make_finish(name)
 		running[name] = nil
 
 		if ok then
-			print("OK  ", name, "\n")
+			color_print(color.green, "OK   ", color.reset, name, "\n")
 			n_ok = n_ok + 1
 		else
 			if err then
-				print(err, "\n---\n")
+				color_print(color.red, err, color.reset, "\n---\n")
 			end
-			print("FAIL", name, "\n")
+			color_print(color.red, "FAIL ", color.reset, name, "\n")
 			n_fail = n_fail + 1
 		end
 
