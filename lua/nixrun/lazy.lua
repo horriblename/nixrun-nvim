@@ -282,8 +282,11 @@ function M.includeGrammar(name, on_done)
 			[[
 		let
 			pkgs = import <nixpkgs> {};
-		in with pkgs;
-			vimPlugins.nvim-treesitter.builtGrammars.%s
+			grammar = pkgs.vimPlugins.nvim-treesitter.grammarPlugins.%s;
+		in [
+			grammar
+			grammar.associatedQuery
+		]
 		]],
 			name
 		)
@@ -401,6 +404,7 @@ M.setupLsp = async.wrap(function(name, on_done)
 	if not found then
 		local ok, v = pcall(require, "nixrun.overrides." .. name)
 		if ok then
+			vim.validate("nixrun.lsp." .. name .. ".package", v.package, "string")
 			found, attr_path = true, v.package
 		end
 		table.insert(tried_sources, "builtin sources (overrides)")
@@ -409,6 +413,7 @@ M.setupLsp = async.wrap(function(name, on_done)
 	if not found then
 		local ok, v = pcall(require, "nixrun.lsp." .. name)
 		if ok then
+			vim.validate("nixrun.lsp." .. name .. ".package", v.package, "string")
 			found, attr_path = true, v.package
 		end
 		table.insert(tried_sources, "builtin sources (script generated)")
